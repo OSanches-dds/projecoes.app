@@ -1,0 +1,11 @@
+Modelo,Diametro_Externo_OD,Lobulos_Estagios,Bent_Housing_Graus,Tipo_Estabilizacao,Diametro_Poco_in,Build_Rate_Teorico,Torque_Maximo_lb_ft,Pressao_Dif_Max_psi
+GyroDrill,4 3/4,5/6 8.3,1.15,Slick,6,3.7,4810,1870
+GyroDrill,4 3/4,5/6 8.3,1.15,Stabilized,6,6.83,4810,1870
+GyroDrill,4 3/4,5/6 8.3,1.5,Slick,6,6.11,4810,1870
+GyroDrill,4 3/4,5/6 8.3,1.5,Stabilized,6,9.08,4810,1870
+GyroDrill,6 3/4,7/8 5.7,1.83,Slick,8 1/2,7.29,13720,1280
+GyroDrill,6 3/4,7/8 5.7,1.83,Stabilized,8 1/2,8.97,13720,1280
+Tomahawk,6 3/4,7/8 4.8,1.5,Slick,8 1/2,9.1,8620,1080
+Tomahawk,6 3/4,7/8 4.8,1.5,Stabilized,8 1/2,10.6,8620,1080
+Tomahawk,6 3/4,7/8 4.8,1.83,Slick,8 1/2,11.1,8620,1080
+Tomahawk,6 3/4,7/8 4.8,1.83,Stabilized,8 1/2,12.7,8620,1080
