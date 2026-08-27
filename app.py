@@ -49,7 +49,47 @@ st.title("🎯 Assistente de Controle Direcional - Intrepid Brasil")
 st.sidebar.header("📁 Importar Dados")
 
 # O parâmetro 'key' garante que o Streamlit saiba quem é quem!
-arquivo_banco = st.sidebar.file_uploader("Carregar Banco de Motores (CSV)", type=["csv"], key="banco_csv")
+# BANCO DE DADOS DE MOTORES EMBUTIDO (Substitui o arquivo CSV/Excel)
+dados_motores = [
+    # GyroDrill 4 3/4" 7/8 2.6 (Furo 6") - Extraído do Manual Intrepid (Pág. 34)
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.80, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 6.83, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.20, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.08, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.71, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.21, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
+
+    # GyroDrill 4 3/4" 7/8 3.8 (Furo 6") - Extraído do Manual Intrepid (Pág. 36)
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.08, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.79, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.60, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 10.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 12.97, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
+
+    # GyroDrill 8" 7/8 4.0 (Furo 12 1/4") - Extraído do Manual Intrepid (Pág. 60)
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.24, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.21, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.15, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.96, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
+
+    # GyroDrill 6 3/4" 7/8 5.7 (Mantido)
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 7.29, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.97, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24},
+
+    # Tomahawk 6 3/4" (Mantido)
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Slick", "Build_Rate": 5.7, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.71, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 8.3, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.65, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.8, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.2, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Slick", "Build_Rate": 11.2, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.7, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3}
+]
+df_motores = pd.DataFrame(dados_motores)
 arquivo_bha = st.sidebar.file_uploader("Carregar Tally da BHA (Excel)", type=["xlsx", "xls"], key="bha_excel")
 
 st.sidebar.markdown("---")
@@ -163,6 +203,148 @@ if st.button("🚀 Calcular Projeção e Orientação"):
 - Base de Cálculo: {origem_rendimento}"""
 
         st.code(relatorio, language="markdown")
+        
+# ==========================================
+# MÓDULO DE ACOMPANHAMENTO DIRECIONAL E PROJEÇÕES
+# Baseado no Petroguia (Pág. D-19) e Ouija-Board
+# ==========================================
+st.markdown("---")
+st.header("🎯 Acompanhamento Direcional (Mínima Curvatura)")
+
+import math
+
+col_s1, col_s2 = st.columns(2)
+
+with col_s1:
+    st.write("**Estação Atual (Último Survey)**")
+    md1 = st.number_input("Profundidade Medida - MD 1 (m)", min_value=0.0, value=1000.0, step=10.0, format="%.2f")
+    inc1 = st.number_input("Inclinação - I1 (graus)", min_value=0.0, max_value=180.0, value=10.0, step=0.1, format="%.2f")
+    az1 = st.number_input("Azimute - A1 (graus)", min_value=0.0, max_value=360.0, value=45.0, step=0.1, format="%.2f")
+    
+    st.write("*Coordenadas Atuais:*")
+    c_tvd1, c_ns1, c_ew1 = st.columns(3)
+    tvd1 = c_tvd1.number_input("TVD 1 (m)", value=995.0, step=1.0)
+    ns1 = c_ns1.number_input("N/S 1 (m)", value=50.0, step=1.0)
+    ew1 = c_ew1.number_input("E/W 1 (m)", value=50.0, step=1.0)
+
+with col_s2:
+    st.write("**Estação Projetada (Próximo Survey / Alvo)**")
+    md2 = st.number_input("Profundidade Medida - MD 2 (m)", min_value=md1, value=md1 + 30.0, step=1.0, format="%.2f")
+    inc2 = st.number_input("Inclinação - I2 (graus)", min_value=0.0, max_value=180.0, value=12.0, step=0.1, format="%.2f")
+    az2 = st.number_input("Azimute - A2 (graus)", min_value=0.0, max_value=360.0, value=50.0, step=0.1, format="%.2f")
+
+# --- CÁLCULO DAS FÓRMULAS DO PETROGUIA (PÁG. D-19) ---
+pm = md2 - md1 # Intervalo medido (Pm)
+
+if pm > 0:
+    # Conversão de graus para radianos para uso trigonométrico
+    i1_rad = math.radians(inc1)
+    i2_rad = math.radians(inc2)
+    a1_rad = math.radians(az1)
+    a2_rad = math.radians(az2)
+    
+    # Cálculo do Beta em radianos (Severidade entre estações)
+    cos_beta = math.cos(i2_rad - i1_rad) - (math.sin(i1_rad) * math.sin(i2_rad) * (1.0 - math.cos(a2_rad - a1_rad)))
+    cos_beta = max(-1.0, min(1.0, cos_beta)) # Segurança matemática
+    beta_rad = math.acos(cos_beta)
+    
+    if beta_rad == 0:
+        F = 1.0
+        dls = 0.0
+    else:
+        # Fator de suavização (F) e DLS (°/30m)
+        F = (2.0 / beta_rad) * math.tan(beta_rad / 2.0)
+        dls = beta_rad * (180.0 / math.pi) * (30.0 / pm)
+        
+    # Variações Parciais e Coordenadas Finais
+    delta_ns = (pm / 2.0) * (math.sin(i1_rad) * math.cos(a1_rad) + math.sin(i2_rad) * math.cos(a2_rad)) * F
+    delta_ew = (pm / 2.0) * (math.sin(i1_rad) * math.sin(a1_rad) + math.sin(i2_rad) * math.sin(a2_rad)) * F
+    pv = (pm / 2.0) * (math.cos(i1_rad) + math.cos(i2_rad)) * F
+    af = (pm / 2.0) * (math.sin(i1_rad) + math.sin(i2_rad)) * F
+    
+    tvd2 = tvd1 + pv
+    ns2 = ns1 + delta_ns
+    ew2 = ew1 + delta_ew
+    
+    st.write("---")
+    st.write("**📍 Resultados da Projeção de Mínima Curvatura**")
+    
+    res1, res2, res3, res4, res5 = st.columns(5)
+    res1.metric("TVD Final (m)", f"{tvd2:.2f}", f"+ {pv:.2f} m", delta_color="off")
+    res2.metric("N/S Final (m)", f"{ns2:.2f}", f"{delta_ns:+.2f} m", delta_color="off")
+    res3.metric("E/W Final (m)", f"{ew2:.2f}", f"{delta_ew:+.2f} m", delta_color="off")
+    res4.metric("DLS Total (°/30m)", f"{dls:.2f}")
+    res5.metric("Afastamento (m)", f"{math.sqrt(ns2**2 + ew2**2):.2f}")
+    
+   # ==========================================
+    # OUIJA-BOARD E ESTRATÉGIA DE SLIDE
+    # ==========================================
+    st.write("---")
+    st.write("### 🧭 Ouija-Board (Orientação da Ferramenta de Desvio)")
+    st.markdown("Cálculo da Toolface (GTF) necessária para convergir do Survey 1 para o Alvo 2.")
+    
+    # Cálculo da Toolface Gravitacional Requerida
+    if beta_rad > 0:
+        tf_y = math.sin(a2_rad - a1_rad) * math.sin(i2_rad)
+        tf_x = math.cos(i2_rad) * math.sin(i1_rad) - math.sin(i2_rad) * math.cos(i1_rad) * math.cos(a2_rad - a1_rad)
+        tf_rad = math.atan2(tf_y, tf_x)
+        tf_deg = math.degrees(tf_rad)
+        if tf_deg < 0:
+            tf_deg += 360.0
+    else:
+        tf_deg = 0.0
+
+    c_ob1, c_ob2, c_ob3 = st.columns(3)
+    c_ob1.metric("Toolface Requerida (GTF)", f"{tf_deg:.0f}°")
+    c_ob2.metric("DLS Necessário na Seção", f"{dls:.2f} °/30m")
+    
+    # --- BUSCA INSTANTÂNEA NO BANCO EMBUTIDO ---
+    build_rate_banco = 0.0
+    try:
+        filtro_motor = df_motores[
+            (df_motores['Modelo'] == modelo) & 
+            (df_motores['Diametro_Externo_OD'] == od) &
+            (df_motores['Bent_Housing_Graus'] == float(bent)) &
+            (df_motores['Tipo_Estabilizacao'] == estabilizacao)
+        ]
+        
+        if not filtro_motor.empty and 'Build_Rate' in filtro_motor.columns:
+            build_rate_banco = float(filtro_motor.iloc[0]['Build_Rate'])
+    except Exception as e:
+        pass
+
+    # Define o valor final: usa o do banco se achar, senão faz a estimativa
+    valor_padrao_br = build_rate_banco if build_rate_banco > 0 else float(max(round(dls + 0.5, 1), 2.0))
+
+    # Input do Build Rate
+    build_rate = c_ob3.number_input("Build Rate da Ferramenta (°/30m)", 
+                                    value=valor_padrao_br, 
+                                    step=0.1, 
+                                    help="Dogleg severity (DLS) esperado do conjunto em modo Slide.")
+    
+    if build_rate_banco > 0:
+        c_ob3.success(f"✅ Motor Encontrado!")
+    else:
+        c_ob3.warning(f"⚠️ Motor não cadastrado. Usando estimativa.")
+    
+    if build_rate > 0:
+        # Lógica de perfuração (Slide vs Rotate)
+        slide_meters = (dls / build_rate) * pm
+        
+        if slide_meters > pm:
+            st.warning(f"⚠️ **Atenção:** O Build Rate do seu motor ({build_rate:.1f} °/30m) é INSUFICIENTE para atingir esse alvo. Para convergir em {pm:.0f}m, você precisa de um conjunto com pelo menos **{dls:.2f} °/30m** ou precisará aumentar a metragem de avanço (MD 2).")
+        else:
+            rotary_meters = pm - slide_meters
+            st.success(f"✅ **Estratégia Recomendada:**\n1. Deslize (Slide) **{slide_meters:.1f} m** orientando a Toolface em **{tf_deg:.0f}°**.\n2. Perfure Rotativo os **{rotary_meters:.1f} m** restantes para atingir o alvo de {inc2}° de Inc e {az2}° de Azimute.")
+
+    with st.expander("Ver Variáveis de Cálculo (Mínima Curvatura)"):
+        st.code(f"Intervalo (Pm) = {pm:.2f} m\nFator de Suavização (F) = {F:.6f}\nÂngulo Beta (rad) = {beta_rad:.6f}\nIntervalo Vertical (pv) = {pv:.2f} m", language="text")
+
+elif pm == 0:
+    st.info("Altere a MD 2 para calcular a projeção.")
+else:
+    st.error("A MD Projetada (MD 2) não pode ser menor que a MD Atual.")
+
 # ==========================================
 # MÓDULO DE ANÁLISE DE BHA (TENDÊNCIA)
 # ==========================================
@@ -221,7 +403,7 @@ with col8:
 # ==========================================
 st.markdown("---")
 st.header("⚙️ Dashboard de Engenharia e Desempenho")
-st.markdown("Cálculos de RPM, Potência e Eficiência baseados nas fórmulas oficiais da Intrepid.")
+st.markdown("Cálculos de RPM, Potência, Eficiência e Perda de Carga do Motor.")
 
 col9, col10, col11 = st.columns(3)
 
@@ -230,370 +412,258 @@ with col9:
     vazao_gpm = st.number_input("Vazão da Bomba (GPM)", value=400.0, step=10.0)
     rpm_superficie = st.number_input("Rotação da Superfície/Top Drive (RPM)", value=40.0, step=5.0)
     
-    # Busca automática do Fator do Motor (Rev/Gal) no Banco de Dados
+    # BUSCA DIRETO NO BANCO DE DADOS EMBUTIDO
     rev_gal_teorico = 0.0
-    if arquivo_banco is not None:
-        try:
-            df = pd.read_csv(arquivo_banco)
-            filtro = df[(df['Modelo'] == modelo) & 
-                        (df['Diametro_Externo_OD'] == od) & 
-                        (df['Bent_Housing_Graus'] == float(bent)) & 
-                        (df['Tipo_Estabilizacao'] == estabilizacao)]
-            
-            if not filtro.empty and 'Rev_Gal' in filtro.columns:
-                rev_gal_teorico = filtro.iloc[0]['Rev_Gal']
-        except Exception as e:
-            st.error("Erro ao ler o Fator do Motor do arquivo.")
+    try:
+        filtro = df_motores[(df_motores['Modelo'] == modelo) & 
+                            (df_motores['Diametro_Externo_OD'] == od) & 
+                            (df_motores['Bent_Housing_Graus'] == float(bent)) & 
+                            (df_motores['Tipo_Estabilizacao'] == estabilizacao)]
+        if not filtro.empty and 'Rev_Gal' in filtro.columns:
+            rev_gal_teorico = float(filtro.iloc[0]['Rev_Gal'])
+    except Exception:
+        pass
             
     rev_gal = st.number_input("Fator do Motor (Rev/Gal)", value=float(rev_gal_teorico), step=0.01)
     peso_lama_ppg = st.number_input("Peso da Lama (ppg)", value=9.0, step=0.1)
 
 with col10:
-    st.write("**Parâmetros de Fundo**")
+    st.write("**Parâmetros de Fundo e PDM**")
     tvd_m = st.number_input("TVD (m)", value=1000.0, step=10.0)
-    pressao_dif = st.number_input("Pressão Diferencial Lida (psi)", value=300.0, step=10.0)
     torque_lbft = st.number_input("Torque Gerado (lb-ft)", value=2500.0, step=100.0)
+    pressao_dif = st.number_input("Pressão Diferencial Lida (psi)", value=300.0, step=10.0)
+    
+    # BUSCA DE OFF-BOTTOM (Se existir na tabela, senão usa estimativa padrão)
+    off_bottom_manual = 0.0
+    try:
+        if not filtro.empty and 'Off_Bottom_psi' in filtro.columns:
+            off_bottom_manual = float(filtro.iloc[0]['Off_Bottom_psi'])
+    except Exception:
+        pass
+            
+    off_bottom_calc = st.number_input("Off-Bottom (psi)", value=float(off_bottom_manual) if off_bottom_manual > 0 else 250.0, step=10.0)
+    motor_total_press_drop = off_bottom_calc + pressao_dif
 
 with col11:
     st.write("**Desempenho Calculado**")
     
-    # 1. Rotações (RPM do Motor + Superfície)
     rpm_motor = vazao_gpm * rev_gal
-    bit_speed_total = rpm_motor + rpm_superficie
+    st.metric(label="Velocidade Total da Broca", value=f"{(rpm_motor + rpm_superficie):.0f} RPM", 
+              delta=f"Motor: {rpm_motor:.0f} | Mesa: {rpm_superficie:.0f}", delta_color="off")
     
-    st.metric(label="Velocidade Total da Broca", 
-              value=f"{bit_speed_total:.0f} RPM", 
-              delta=f"Motor: {rpm_motor:.0f} RPM | Superfície: {rpm_superficie:.0f} RPM", 
-              delta_color="off")
-    
-    # 2. Potência Mecânica (HPm) - O cálculo de engenharia usa apenas o RPM interno do Motor
     hp_mec = (torque_lbft * rpm_motor) / 5252 if rpm_motor > 0 else 0
     st.metric(label="Potência Mecânica (Motor)", value=f"{hp_mec:.1f} HP")
     
-    # 3. Eficiência do Motor (%) - Também baseada apenas no desempenho hidráulico/mecânico do motor
-    if (vazao_gpm * pressao_dif) > 0:
-        eficiencia = (32.64 * torque_lbft * rpm_motor) / (vazao_gpm * pressao_dif)
-    else:
-        eficiencia = 0
-        
-    if eficiencia > 80:
-        st.success(f"**Eficiência do Motor:** {eficiencia:.1f} %")
-    elif eficiencia > 50:
-        st.warning(f"**Eficiência do Motor:** {eficiencia:.1f} %")
-    else:
-        st.error(f"**Eficiência do Motor:** {eficiencia:.1f} %")
-    
-    # 4. Pressão Hidrostática (psi)
-    tvd_ft = tvd_m * 3.28084
-    ph = 0.052 * tvd_ft * peso_lama_ppg
-    st.info(f"**Pressão Hidrostática:** {ph:.0f} psi")
+    st.metric(label="ΔP Total do Motor", value=f"{motor_total_press_drop:.0f} psi", 
+              delta=f"Diff: {pressao_dif:.0f} | Off-Bot: {off_bottom_calc:.0f}", delta_color="off")# ==========================================
 
 # ==========================================
-# MÓDULO DE HIDRÁULICA AVANÇADA (BHA REAL)
+# MÓDULO DE HIDRÁULICA DA BROCA E POÇO
 # ==========================================
 st.markdown("---")
-st.header("🌊 Dashboard de Hidráulica Avançada")
-st.markdown("Cálculos de velocidade anular com base nas seções reais da BHA carregada.")
+st.header("🌊 Dashboard de Hidráulica")
 
 col12, col13 = st.columns(2)
 
 with col12:
-    st.write("**Parâmetros da Broca**")
+    st.write("**Parâmetros da Broca e Poço**")
     tfa = st.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f")
     dh = st.number_input("Diâmetro do Poço / Hole Diameter (in)", value=8.5, step=0.125)
 
 with col13:
     st.write("**Resultados Hidráulicos na Broca**")
-    
-    # 1. Queda de Pressão na Broca
     if tfa > 0:
         bit_press_drop = (vazao_gpm**2 * peso_lama_ppg) / (10858 * (tfa**2))
-    else:
-        bit_press_drop = 0
-    
-    st.metric(label="Queda de Pressão na Broca (ΔP)", value=f"{bit_press_drop:.0f} psi")
-    if bit_press_drop > 1500:
-        st.error("⚠️ Queda de pressão na broca excedeu 1500 psi. Risco ao mancal do motor!")
-        
-    # 2. Velocidade do Jato (convertido para m/s)
-    if tfa > 0:
         jet_velocity_m = ((0.32086 * vazao_gpm) / tfa) * 0.3048
     else:
+        bit_press_drop = 0
         jet_velocity_m = 0
+        
+    st.metric(label="Queda de Pressão na Broca (ΔP)", value=f"{bit_press_drop:.0f} psi")
     st.metric(label="Velocidade do Jato", value=f"{jet_velocity_m:.1f} m/s")
+    
+# ==========================================
+# MÓDULO DE COMPOSIÇÃO DA COLUNA (BHA + DP)
+# ==========================================
+st.markdown("---")
+st.header("📊 Composição da Coluna e Análise de Seção")
 
-# ==========================================
-# ANÁLISE SEÇÃO POR SEÇÃO (HIDRÁULICA, VOLUMETRIA E PESOS)
-# ==========================================
-st.subheader("📊 Análise Completa da BHA (Hidráulica, Volumes e Pesos)")
+# Variáveis globais de rastreamento
+vol_total_interno_bha = 0.0
+vol_total_anular_bha = 0.0
+peso_total_bha = 0.0
+comp_total_bha = 0.0 
 
 if arquivo_bha is not None:
     try:
-        # Leitura Direta: Pula as 11 primeiras linhas e lê da linha 12 até a 19
         df_bha = pd.read_excel(arquivo_bha, header=None, skiprows=11, nrows=8)
-        
         resultados_bha = []
-        vol_total_interno = 0.0
-        vol_total_anular = 0.0
-        peso_total_bha = 0.0
         
         for index, row in df_bha.iterrows():
             comp_nome = str(row[4]) if pd.notna(row[4]) else str(row[3]) 
             desc_upper = comp_nome.upper()
-            
-            # Coluna F (OD) e G (ID)
             od_ferramenta = pd.to_numeric(row[5], errors='coerce')
             id_val = row[6]
             
-            # Coluna J (Índice 9) -> Tratamento da string "Wt[lb/ft] / Comp Wt[klbs] / Tot Wt[klbs]"
+            # RESGATE DOS PESOS COMPLETOS
             peso_raw = str(row[9]) if pd.notna(row[9]) else ""
             wt_lb_ft, comp_wt_klbs, tot_wt_klbs = "-", "-", "-"
-            
             if peso_raw and "/" in peso_raw:
                 partes = [p.strip() for p in peso_raw.split("/")]
-                if len(partes) >= 1: 
-                    wt_lb_ft = partes[0]
+                if len(partes) >= 1: wt_lb_ft = partes[0]
                 if len(partes) >= 2: 
                     comp_wt_klbs = partes[1]
-                    # Soma o peso do componente (em klbs) ao Totalizador Geral da BHA
-                    try:
-                        peso_total_bha += float(comp_wt_klbs.replace(',', '.'))
-                    except:
-                        pass
-                if len(partes) >= 3:
-                    tot_wt_klbs = partes[2]
+                    try: peso_total_bha += float(comp_wt_klbs.replace(',', '.'))
+                    except: pass
+                if len(partes) >= 3: tot_wt_klbs = partes[2]
             
-            # Coluna K (Comprimento individual) e L (Comprimento acumulado)
             comp_individual = pd.to_numeric(row[10], errors='coerce')
-            comp_acumulado = pd.to_numeric(row[11], errors='coerce')
+            if pd.isna(comp_individual): comp_individual = 0.0
             
-            if pd.isna(comp_individual):
-                comp_individual = 0.0
-            
-            id_ferramenta = "-"
-            v_anular_m = 0
-            vol_interno_bbl = 0
-            vol_anular_bbl = 0
+            id_ferramenta, v_anular_m, vol_interno_bbl, vol_anular_bbl = "-", 0, 0, 0
             
             if pd.notna(od_ferramenta) and od_ferramenta > 0:
+                comp_total_bha += comp_individual
                 
-                # ----------------------------------------------------
-                # LÓGICA DA BROCA
-                # ----------------------------------------------------
                 if "BROCA" in desc_upper:
                     id_ferramenta = "TFA"
-                    if tfa > 0:
-                        v_anular_m = ((0.32086 * vazao_gpm) / tfa) * 60 * 0.3048
-                    
-                # ----------------------------------------------------
-                # LÓGICA TUBULARES E MOTOR
-                # ----------------------------------------------------
+                    if tfa > 0: v_anular_m = ((0.32086 * vazao_gpm) / tfa) * 60 * 0.3048
                 else:
-                    # Regras de Negócio de ID
-                    if "PDM" in desc_upper or "CAMISA" in desc_upper or "MOTOR" in desc_upper:
-                        id_ferramenta = 2.50
-                    elif "STB" in desc_upper or "ESTABILIZADOR" in desc_upper:
-                        id_ferramenta = 2.8125
-                    elif "DRILL COLLAR" in desc_upper or "DC " in desc_upper:
-                        id_ferramenta = 2.8125
+                    if "PDM" in desc_upper or "CAMISA" in desc_upper or "MOTOR" in desc_upper: id_ferramenta = 2.50
+                    elif "STB" in desc_upper or "ESTABILIZADOR" in desc_upper or "DRILL COLLAR" in desc_upper or "DC " in desc_upper: id_ferramenta = 2.8125
                     elif pd.isna(id_val) or str(id_val).strip() == "" or id_val == 0:
-                        if any(ferramenta in desc_upper for ferramenta in ["UBHO", "GAP", "MONEL"]):
-                            id_ferramenta = 3.25
-                        else:
-                            id_ferramenta = "-"
+                        if any(ferramenta in desc_upper for ferramenta in ["UBHO", "GAP", "MONEL"]): id_ferramenta = 3.25
+                        else: id_ferramenta = "-"
                     else:
                         id_ferramenta = pd.to_numeric(id_val, errors='coerce')
-                        if pd.isna(id_ferramenta):
-                            id_ferramenta = "-"
+                        if pd.isna(id_ferramenta): id_ferramenta = "-"
                     
-                    # Cálculos Hidráulicos
                     if (dh**2 - od_ferramenta**2) > 0:
-                        v_anular_ft = (24.51 * vazao_gpm) / (dh**2 - od_ferramenta**2)
-                        v_anular_m = v_anular_ft * 0.3048
-                        
+                        v_anular_m = ((24.51 * vazao_gpm) / (dh**2 - od_ferramenta**2)) * 0.3048
                         cap_anular_bbl_m = (((dh**2) - (od_ferramenta**2)) / 1029.4) * 3.28084
                         vol_anular_bbl = cap_anular_bbl_m * comp_individual
-                        vol_total_anular += vol_anular_bbl
+                        vol_total_anular_bha += vol_anular_bbl
                     
                     if isinstance(id_ferramenta, (int, float)) and id_ferramenta > 0:
                         cap_int_bbl_m = ((id_ferramenta**2) / 1029.4) * 3.28084
                         vol_interno_bbl = cap_int_bbl_m * comp_individual
-                        vol_total_interno += vol_interno_bbl
+                        vol_total_interno_bha += vol_interno_bbl
                 
-                # Adiciona à lista final
                 resultados_bha.append({
-                    "Componente": comp_nome,
-                    "OD (in)": od_ferramenta,
-                    "ID (in)": id_ferramenta,
-                    "Peso Comp (klbs)": comp_wt_klbs,
-                    "Peso Acum (klbs)": tot_wt_klbs,
-                    "Comp (m)": round(comp_individual, 2),
-                    "Vel (m/min)": round(v_anular_m, 1),
-                    "Vol Int (bbl)": round(vol_interno_bbl, 2) if vol_interno_bbl > 0 else "-",
-                    "Vol Anu (bbl)": round(vol_anular_bbl, 2) if vol_anular_bbl > 0 else "-"
+                    "Componente": comp_nome, "OD": od_ferramenta, "ID": id_ferramenta,
+                    "lb/ft": wt_lb_ft, "Comp(klbs)": comp_wt_klbs, "Acum(klbs)": tot_wt_klbs,
+                    "C (m)": round(comp_individual, 2), "Vel (m/min)": round(v_anular_m, 1),
+                    "V Int (bbl)": round(vol_interno_bbl, 2) if vol_interno_bbl > 0 else "-",
+                    "V Anu (bbl)": round(vol_anular_bbl, 2) if vol_anular_bbl > 0 else "-"
                 })
         
         if len(resultados_bha) > 0:
+            st.write(f"**1. Bottom Hole Assembly (BHA)** - Comprimento Total: {comp_total_bha:.2f} m")
             df_resultados = pd.DataFrame(resultados_bha)
-            
-            def colorir_velocidade(val):
+            def colorir(val):
                 if isinstance(val, (int, float)):
                     if val < 30: return 'background-color: #ffcccc; color: black;'
                     elif val > 60 and val < 1000: return 'background-color: #ffe6cc; color: black;'
                     elif val >= 1000: return 'background-color: #cce5ff; color: black;'
                     return 'background-color: #ccffcc; color: black;'
                 return ''
+            st.dataframe(df_resultados.style.map(colorir, subset=['Vel (m/min)']), use_container_width=True)
             
-            st.dataframe(df_resultados.style.map(colorir_velocidade, subset=['Vel (m/min)']), use_container_width=True)
-            
-            # ==========================================
-            # CÁLCULOS DE ENGENHARIA (FLUTUAÇÃO E PESOS)
-            # ==========================================
-            # Fator de Flutuação (BF) para Aço Carbono
-            # O peso_lama_ppg é puxado do input lá do início do painel!
+            # WOB disponível na BHA
             bf = 1.0 - (peso_lama_ppg / 65.5)
-            peso_disponivel = peso_total_bha * bf
-            
-            st.write("---")
-            st.write("### ⚖️ Resumo de Peso e Volumetria")
-            
-            col_v1, col_v2, col_v3 = st.columns(3)
-            col_v1.metric(label="Volume Interno da BHA", value=f"{vol_total_interno:.2f} bbl")
-            col_v2.metric(label="Volume Anular da BHA", value=f"{vol_total_anular:.2f} bbl")
-            col_v3.metric(label="Peso Total da BHA (Ar)", value=f"{peso_total_bha:.2f} klbs")
-            
-            col_v4, col_v5, col_v6 = st.columns(3)
-            col_v4.metric(label="Fator de Flutuação (BF)", value=f"{bf:.4f}")
-            col_v5.metric(label="Peso Disponível (Flutuado)", value=f"{peso_disponivel:.2f} klbs")
-            col_v6.info(f"Baseado na lama de {peso_lama_ppg:.1f} ppg")
-            
-        else:
-            st.warning("Não foram encontrados dados de OD válidos nas linhas 12 a 19.")
+            peso_disp = peso_total_bha * bf
+            st.info(f"⚖️ **WOB Máximo Disponível (BHA Flutuada):** {peso_disp:.1f} klbs | **Peso no Ar:** {peso_total_bha:.1f} klbs")
             
     except Exception as e:
-        st.error(f"Erro ao processar as células do Excel: {e}")
+        st.error(f"Erro ao processar BHA: {e}")
 else:
-    st.info("👆 Carregue o Tally da BHA (Excel) na barra lateral para calcular a Hidráulica Seção por Seção.")
+    st.info("👆 Carregue o Tally da BHA (Excel) para ver a seção inferior.")
 
-# ==========================================
-# MÓDULO DE DRILL PIPES E MOTOR (PERDA DE CARGA)
-# ==========================================
-st.markdown("---")
-st.header("🪈 Drill Pipes e Especificações do Motor")
-
-# Dicionário de Drill Pipes: Substitua esses valores pelos pesos e IDs reais que você me passar!
-# Formato: "Nome no Menu": {"OD": polegadas, "ID": polegadas, "Peso": lb/ft}
+# --- SEÇÃO DOS DRILL PIPES ---
+st.write("**2. Drill Pipes (DP)**")
 dp_specs = {
     "DP 5\" - 19.5 lb/ft (S135)": {"OD": 5.0, "ID": 4.276, "Peso": 19.5},
     "DP 5\" - 25.6 lb/ft (HWDP)": {"OD": 5.0, "ID": 3.000, "Peso": 25.6},
     "DP 4\" - 14.0 lb/ft (S135)": {"OD": 4.0, "ID": 3.340, "Peso": 14.0}
 }
 
-col_dp1, col_dp2, col_dp3 = st.columns(3)
-
-with col_dp1:
-    st.write("**Especificação dos Tubos**")
-    dp_escolhido = st.selectbox("Selecione o Drill Pipe:", list(dp_specs.keys()))
-    
+col_dp1, col_dp2 = st.columns(2)
+with col_dp1: dp_escolhido = st.selectbox("Selecione o Drill Pipe:", list(dp_specs.keys()), key="dp_select")
 with col_dp2:
-    st.write("**Metragem na Coluna**")
-    qtd_dp = st.number_input("Quantidade (Juntas)", min_value=0, value=50, step=10)
-    comp_medio_dp = st.number_input("Comprimento Médio (m/junta)", min_value=0.0, value=9.5, step=0.1)
+    # PERMITE CASAS DECIMAIS PARA FRAÇÃO DE JUNTA
+    qtd_dp = st.number_input("Quantidade (Juntas)", min_value=0.00, value=50.00, step=0.01, format="%.2f", key="dp_qtd")
+    comp_medio_dp = st.number_input("Comp. Médio (m/junta)", min_value=0.0, value=9.5, step=0.1, key="dp_comp")
 
-with col_dp3:
-    st.write("**Perda de Carga do Motor**")
-    # Este campo permite ao direcional inserir a perda de carga do motor girando em vazio (Off-bottom pressure drop) 
-    # ou a pressão diferencial máxima, conforme o manual da Intrepid.
-    motor_no_load = st.number_input("Perda de Carga (psi)", value=250.0, step=10.0, help="Pressão gasta pelo fluxo da lama passando pelo motor, conforme o manual.")
-
-# ==========================================
-# MÓDULO DE DRILL PIPES E MOTOR (PERDA DE CARGA)
-# ==========================================
-st.markdown("---")
-st.header("🪈 Drill Pipes e Hidráulica do Motor")
-
-# Dicionário de Drill Pipes: Substitua pelo OD, ID e Peso reais da sua operação
-dp_specs = {
-    "DP 5\" - 19.5 lb/ft (S135)": {"OD": 5.0, "ID": 4.276, "Peso": 19.5},
-    "DP 5\" - 25.6 lb/ft (HWDP)": {"OD": 5.0, "ID": 3.000, "Peso": 25.6},
-    "DP 4\" - 14.0 lb/ft (S135)": {"OD": 4.0, "ID": 3.340, "Peso": 14.0}
-}
-
-col_dp1, col_dp2, col_dp3 = st.columns(3)
-
-with col_dp1:
-    st.write("**Especificação dos Tubos**")
-    dp_escolhido = st.selectbox("Selecione o Drill Pipe:", list(dp_specs.keys()), key="dp_select")
-    
-with col_dp2:
-    st.write("**Metragem na Coluna**")
-    qtd_dp = st.number_input("Quantidade (Juntas)", min_value=0, value=50, step=10, key="dp_qtd")
-    comp_medio_dp = st.number_input("Comprimento Médio (m/junta)", min_value=0.0, value=9.5, step=0.1, key="dp_comp")
-
-with col_dp3:
-    st.write("**Perda de Carga do Motor (PDM)**")
-    
-    # Valor padrão de segurança caso o arquivo falhe
-    off_bottom_calc = 250.0 
-    
-    if arquivo_banco is not None:
-        try:
-            # Lê o banco de motores carregado na barra lateral
-            df_motores = pd.read_csv(arquivo_banco)
-            
-            # Filtra o motor exato que o direcional escolheu
-            filtro_motor = df_motores[(df_motores['Modelo'] == modelo) & 
-                                      (df_motores['Diametro_Externo_OD'] == od) &
-                                      (df_motores['Lobulos'] == lobulos)]
-            
-            if not filtro_motor.empty and 'Off_Bottom_psi' in filtro_motor.columns:
-                off_bottom_calc = float(filtro_motor.iloc[0]['Off_Bottom_psi'])
-                st.success("✅ Off-Bottom importado do Banco de Dados!")
-            else:
-                st.warning("⚠️ Motor não encontrado no CSV. Usando 250 psi como padrão.")
-        except Exception as e:
-            st.error("Erro ao ler o manual no CSV.")
-    else:
-        st.info("ℹ️ Banco de Motores não carregado. Usando 250 psi como padrão.")
-            
-    # Cálculo automático: Off-Bottom (Manual) + Pressão Diferencial Aplicada (WOB)
-    motor_total_press_drop = off_bottom_calc + pressao_dif
-    
-    st.metric(label="ΔP Total do Motor", value=f"{motor_total_press_drop:.0f} psi", 
-              delta=f"Off-Bot: {off_bottom_calc:.0f} | Diff: {pressao_dif:.0f}", 
-              delta_color="off")
-
-# ----------------------------------------------------
-# CÁLCULOS TOTAIS DA STRING (DP)
-# ----------------------------------------------------
 comp_total_dp = qtd_dp * comp_medio_dp
 od_dp = dp_specs[dp_escolhido]["OD"]
 id_dp = dp_specs[dp_escolhido]["ID"]
 peso_linear_dp = dp_specs[dp_escolhido]["Peso"]
 
+v_anular_dp_m, vol_int_dp, vol_anular_dp, peso_total_dp_klbs = 0, 0, 0, 0
+
 if comp_total_dp > 0:
-    # 1. Velocidade Anular ao redor do DP
-    if (dh**2 - od_dp**2) > 0:
-        v_anular_dp_ft = (24.51 * vazao_gpm) / (dh**2 - od_dp**2)
-        v_anular_dp_m = v_anular_dp_ft * 0.3048
-    else:
-        v_anular_dp_m = 0
-        
-    # 2. Volumes do DP (bbl)
-    cap_anular_dp_m = (((dh**2) - (od_dp**2)) / 1029.4) * 3.28084
-    vol_anular_dp = cap_anular_dp_m * comp_total_dp
-    
-    cap_int_dp_m = ((id_dp**2) / 1029.4) * 3.28084
-    vol_int_dp = cap_int_dp_m * comp_total_dp
-    
-    # 3. Peso do DP (klbs)
+    if (dh**2 - od_dp**2) > 0: v_anular_dp_m = ((24.51 * vazao_gpm) / (dh**2 - od_dp**2)) * 0.3048
+    vol_anular_dp = ((((dh**2) - (od_dp**2)) / 1029.4) * 3.28084) * comp_total_dp
+    vol_int_dp = (((id_dp**2) / 1029.4) * 3.28084) * comp_total_dp
     peso_total_dp_klbs = (comp_total_dp * 3.28084 * peso_linear_dp) / 1000
+
+    col_dpr1, col_dpr2, col_dpr3 = st.columns(3)
+    col_dpr1.metric("Metragem de DP", f"{comp_total_dp:.2f} m")
+    col_dpr2.metric("Vel. Anular no DP", f"{v_anular_dp_m:.1f} m/min")
+    col_dpr3.metric("Peso no Ar (DP)", f"{peso_total_dp_klbs:.1f} klbs")
+
+# ==========================================
+# RESUMO GLOBAL: PESO, VOLUMETRIA, TEMPOS E ECD
+# ==========================================
+st.markdown("---")
+st.header("⚖️ Resumo Global e Dinâmica do Poço")
+
+# Somatórios
+profundidade_md = comp_total_bha + comp_total_dp
+vol_int_poco = vol_total_interno_bha + vol_int_dp
+vol_anu_poco = vol_total_anular_bha + vol_anular_dp
+vol_total_sistema = vol_int_poco + vol_anu_poco
+peso_total_coluna = peso_total_bha + peso_total_dp_klbs
+
+# Flutuação
+bf = 1.0 - (peso_lama_ppg / 65.5)
+peso_flutuado_coluna = peso_total_coluna * bf
+
+st.write("**Profundidade e Peso da Coluna**")
+col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+col_g1.metric("Profundidade (MD)", f"{profundidade_md:.1f} m", help="Soma total do comprimento BHA + DP.")
+col_g2.metric("Hook Load (Flutuado)", f"{peso_flutuado_coluna:.1f} klbs")
+col_g3.metric("Volume Anular", f"{vol_anu_poco:.1f} bbl")
+col_g4.metric("Volume Total (Ciclo)", f"{vol_total_sistema:.1f} bbl")
+
+# --- NOVO: SEÇÃO DE TELEMETRIA E ECD ---
+st.write("**Telemetria MWD e Leitura de ECD**")
+telemetria = st.radio("Selecione o tipo de transmissão MWD:", ["EM (Eletromagnético)", "PP (Mud Pulse)"], horizontal=True)
+
+if "EM" in telemetria:
+    st.info("📡 **Telemetria EM:** ECD calculado com base na leitura direta do PWD ou estimativa calibrada.")
+else:
+    st.warning("📳 **Telemetria PP:** Valor de ECD **ESTIMADO** matematicamente. Como não há PWD acoplado, o cálculo baseia-se na perda de carga anular teórica e pressão (SPP).")
+
+# O campo e o cálculo agora ficam fora do "if", aparecendo para ambos os casos!
+delta_p_anular = st.number_input("Perda de Carga Anular Estimada (psi)", value=150.0, step=10.0, help="Pressão gasta para elevar o fluido pelo anular (estimada ou via PWD).")
+
+tvd_ft = tvd_m * 3.28084
+if tvd_ft > 0:
+    ecd_ppg = peso_lama_ppg + (delta_p_anular / (0.052 * tvd_ft))
+else:
+    ecd_ppg = peso_lama_ppg
     
-    st.success(f"✅ **Coluna Adicionada:** {comp_total_dp:.1f} metros de {dp_escolhido}")
+st.metric("Equivalent Circulating Density (ECD)", f"{ecd_ppg:.2f} ppg", delta=f"+ {(ecd_ppg - peso_lama_ppg):.2f} ppg", delta_color="inverse")
+
+# --- TEMPOS DE CIRCULAÇÃO ---
+st.write("**Tempos de Circulação e Bomba**")
+bbl_stroke = st.number_input("Capacidade da Bomba (bbl/stk)", value=0.117, step=0.001, format="%.3f")
+
+if vazao_gpm > 0 and bbl_stroke > 0:
+    vazao_bbl_min = vazao_gpm / 42.0 
     
-    # Exibe os dados do Drill Pipe calculados
-    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-    col_r1.metric("Vel. Anular (DP)", f"{v_anular_dp_m:.1f} m/min")
-    col_r2.metric("Vol. Interno (DP)", f"{vol_int_dp:.1f} bbl")
-    col_r3.metric("Vol. Anular (DP)", f"{vol_anular_dp:.1f} bbl")
-    col_r4.metric("Peso no Ar (DP)", f"{peso_total_dp_klbs:.1f} klbs")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Surface to Bit (Descer Pílula)", f"{(vol_int_poco / vazao_bbl_min):.0f} min", f"{(vol_int_poco / bbl_stroke):.0f} stks", delta_color="off")
+    c2.metric("Bottom Up (Retorno de Fundo)", f"{(vol_anu_poco / vazao_bbl_min):.0f} min", f"{(vol_anu_poco / bbl_stroke):.0f} stks", delta_color="off")
+    c3.metric("Ciclo Completo", f"{(vol_total_sistema / vazao_bbl_min):.0f} min", f"{(vol_total_sistema / bbl_stroke):.0f} stks", delta_color="off")
