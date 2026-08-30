@@ -1,6 +1,145 @@
 import streamlit as st
 import pandas as pd
+import math
 import numpy as np
+import base64
+from fpdf import FPDF
+import datetime
+
+# ==========================================
+# DICIONÁRIO DE IDIOMAS (i18n)
+# ==========================================
+textos = {
+    "Português": {
+        "title_main": "🎯 Assistente de Controle Direcional",
+        "lang_header": "🌍 Idioma / Language",
+        "bha_header": "📁 Entrada da BHA",
+        "method": "Método de Entrada:",
+        "opt_excel": "Excel (Tally)",
+        "opt_smart": "Construtor Inteligente",
+        "msg_smart": "🤖 Construtor Inteligente Ativado",
+        "std_config": "Configuração Padrão (Petroguia)",
+        "bit_label": "**Broca**",
+        "bit_type": "Tipo",
+        "bit_height": "Altura (m)",
+        "lwd_label": "**Sensores LWD (Oliden)**",
+        "lwd_select": "Adicionar Ferramentas:",
+        "custom_options": "**Opções Customizadas**",
+        "motor_config": "⚙️ Configuração do Motor",
+        "well_data": "📍 Dados do Poço e Target",
+        "btn_calc": "🚀 Calcular Projeção e Orientação",
+        "res_inst": "📊 Resultados e Instruções",
+        "prev_surv": "Survey Anterior",
+        "curr_surv": "Survey Atual",
+        "target": "Target (Alvo)",
+        "head_proj": "🎯 Acompanhamento Direcional (Mínima Curvatura)",
+        "head_eng": "⚙️ Engenharia e Hidráulica do Motor",
+        "head_bha": "📊 Composição da Coluna e Análise de Seção",
+        "head_auto": "🛠️ Análise Automática da BHA e Jar Placement",
+        "head_hyd": "🌊 Dashboard de Hidráulica Integrado",
+        "head_glob": "⚖️ Resumo Global e Dinâmica do Poço",
+        "head_pdf": "📄 Relatório de Engenharia Direcional",
+        "fluid_param": "**Parâmetros de Fluido e Vazão**",
+        "rheology": "**Reologia**",
+        "downhole_param": "**Parâmetros de Fundo e PDM**",
+        "calc_perf": "**Desempenho Calculado**",
+        "btn_pdf": "Gerar Relatório em PDF"
+    },
+    "English": {
+        "title_main": "🎯 Directional Control Assistant",
+        "lang_header": "🌍 Language",
+        "bha_header": "📁 BHA Input",
+        "method": "Input Method:",
+        "opt_excel": "Excel (Tally)",
+        "opt_smart": "Smart Builder",
+        "msg_smart": "🤖 Smart Builder Activated",
+        "std_config": "Standard Configuration",
+        "bit_label": "**Drill Bit**",
+        "bit_type": "Type",
+        "bit_height": "Length (m)",
+        "lwd_label": "**LWD Sensors (Oliden)**",
+        "lwd_select": "Add Tools:",
+        "custom_options": "**Custom Options**",
+        "motor_config": "⚙️ Motor Configuration",
+        "well_data": "📍 Well & Target Data",
+        "btn_calc": "🚀 Calculate Projection & Orientation",
+        "res_inst": "📊 Results & Instructions",
+        "prev_surv": "Previous Survey",
+        "curr_surv": "Current Survey",
+        "target": "Target",
+        "head_proj": "🎯 Directional Tracking (Minimum Curvature)",
+        "head_eng": "⚙️ Motor Engineering & Hydraulics",
+        "head_bha": "📊 String Composition & Section Analysis",
+        "head_auto": "🛠️ Automatic BHA Analysis & Jar Placement",
+        "head_hyd": "🌊 Integrated Hydraulics Dashboard",
+        "head_glob": "⚖️ Global Summary & Well Dynamics",
+        "head_pdf": "📄 Directional Engineering Report",
+        "fluid_param": "**Fluid & Flow Parameters**",
+        "rheology": "**Rheology**",
+        "downhole_param": "**Downhole & PDM Parameters**",
+        "calc_perf": "**Calculated Performance**",
+        "btn_pdf": "Generate PDF Report"
+    },
+    "Español": {
+        "title_main": "🎯 Asistente de Control Direccional",
+        "lang_header": "🌍 Idioma",
+        "bha_header": "📁 Entrada de BHA",
+        "method": "Método de Entrada:",
+        "opt_excel": "Excel (Tally)",
+        "opt_smart": "Constructor Inteligente",
+        "msg_smart": "🤖 Constructor Inteligente Activado",
+        "std_config": "Configuración Estándar",
+        "bit_label": "**Broca / Trépano**",
+        "bit_type": "Tipo",
+        "bit_height": "Altura (m)",
+        "lwd_label": "**Sensores LWD (Oliden)**",
+        "lwd_select": "Agregar Herramientas:",
+        "custom_options": "**Opciones Personalizadas**",
+        "motor_config": "⚙️ Configuración del Motor",
+        "well_data": "📍 Datos del Pozo y Objetivo",
+        "btn_calc": "🚀 Calcular Proyección y Orientación",
+        "res_inst": "📊 Resultados e Instrucciones",
+        "prev_surv": "Survey Anterior",
+        "curr_surv": "Survey Actual",
+        "target": "Objetivo (Target)",
+        "head_proj": "🎯 Seguimiento Direccional (Mínima Curvatura)",
+        "head_eng": "⚙️ Ingeniería e Hidráulica del Motor",
+        "head_bha": "📊 Composición de la Sarta y Análisis de Sección",
+        "head_auto": "🛠️ Análisis Automático de BHA y Jar Placement",
+        "head_hyd": "🌊 Dashboard de Hidráulica Integrado",
+        "head_glob": "⚖️ Resumen Global y Dinámica del Pozo",
+        "head_pdf": "📄 Reporte de Ingeniería Direccional",
+        "fluid_param": "**Parámetros de Fluido y Caudal**",
+        "rheology": "**Reología**",
+        "downhole_param": "**Parámetros de Fondo y PDM**",
+        "calc_perf": "**Rendimiento Calculado**",
+        "btn_pdf": "Generar Reporte PDF"
+    }
+}
+
+# ==========================================
+# CABEÇALHO COM LOGO E TÍTULO
+# ==========================================
+st.set_page_config(page_title="Intrepid Direcional", layout="wide")
+
+col_logo, col_titulo = st.columns([1.5, 4.5])
+try:
+    col_logo.image("logo_intrepid.png", width=280) 
+except Exception:
+    pass
+
+# --- SINCRONIZAÇÃO GLOBAL DE VARIÁVEIS ---
+if 'wob_side' not in st.session_state:
+    st.session_state.wob_side = 40.0
+if 'wob_main' not in st.session_state:
+    st.session_state.wob_main = 40.0
+
+def sync_from_side():
+    st.session_state.wob_main = st.session_state.wob_side
+
+def sync_from_main():
+    st.session_state.wob_side = st.session_state.wob_main
+# ==========================================
 
 # ==========================================
 # FUNÇÕES MATEMÁTICAS
@@ -10,595 +149,586 @@ def calcular_dogleg(inc1, az1, inc2, az2):
     i2, a2 = np.radians(inc2), np.radians(az2)
     dl_rad = np.arccos(np.cos(i1)*np.cos(i2) + np.sin(i1)*np.sin(i2)*np.cos(a2 - a1))
     return np.degrees(dl_rad)
+
 def calcular_direcional(inc1, az1, md1, inc2, az2, md2):
-    # Converte graus para radianos
     i1, a1 = np.radians(inc1), np.radians(az1)
     i2, a2 = np.radians(inc2), np.radians(az2)
-    
-    # Previne divisão por zero
     delta_md = md2 - md1
     if delta_md <= 0:
         return 0.0, 0.0
-        
-    # Calcula o Dogleg (DL)
     dl_rad = np.arccos(np.cos(i1)*np.cos(i2) + np.sin(i1)*np.sin(i2)*np.cos(a2 - a1))
     dl_deg = np.degrees(dl_rad)
-    
-    # Calcula DLS (Normalizado para 30 metros)
     dls_30m = dl_deg * (30.0 / delta_md)
-    
-    # Calcula a Toolface Recomendada (Gravity Toolface)
     y = np.sin(i2) * np.sin(a2 - a1)
     x = np.sin(i2) * np.cos(i1) * np.cos(a2 - a1) - np.sin(i1) * np.cos(i2)
     tf_rad = np.arctan2(y, x)
     tf_deg = np.degrees(tf_rad)
     if tf_deg < 0:
         tf_deg += 360
-        
     return dls_30m, tf_deg
 
+def parse_weight(val):
+    try:
+        return float(str(val).replace(',', '.'))
+    except ValueError:
+        return 0.0
+    
 # ==========================================
-# INTERFACE PRINCIPAL
+# BANCO DE DADOS DE MOTORES EMBUTIDO
 # ==========================================
-st.set_page_config(page_title="Intrepid Direcional", layout="wide")
-st.title("🎯 Assistente de Controle Direcional - Intrepid Brasil")
-
-# ==========================================
-# BARRA LATERAL (SIDEBAR) - Configuração
-# ==========================================
-st.sidebar.header("📁 Importar Dados")
-
-# O parâmetro 'key' garante que o Streamlit saiba quem é quem!
-# BANCO DE DADOS DE MOTORES EMBUTIDO (Substitui o arquivo CSV/Excel)
 dados_motores = [
-    # GyroDrill 4 3/4" 7/8 2.6 (Furo 6") - Extraído do Manual Intrepid (Pág. 34)
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.80, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 6.83, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.20, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.08, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.71, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.21, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26},
-
-    # GyroDrill 4 3/4" 7/8 3.8 (Furo 6") - Extraído do Manual Intrepid (Pág. 36)
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.08, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.79, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.60, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 10.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 12.97, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52},
-
-    # GyroDrill 8" 7/8 4.0 (Furo 12 1/4") - Extraído do Manual Intrepid (Pág. 60)
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.24, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.21, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.15, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.96, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17},
-
-    # GyroDrill 6 3/4" 7/8 5.7 (Mantido)
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 7.29, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24},
-    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.97, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24},
-
-    # Tomahawk 6 3/4" (Mantido)
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Slick", "Build_Rate": 5.7, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.71, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 8.3, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.65, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.5},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.8, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.5, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.2, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Slick", "Build_Rate": 11.2, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3},
-    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.7, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.3}
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.80, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 6.83, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.20, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.08, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.71, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 2.6", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.21, "Torque_Max": 5250, "Pressao_D": 590, "Rev_Gal": 0.26, "Perda_Vazio_psi": 46},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 3.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.08, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 6.79, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.60, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 10.90, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "4 3/4", "Lobulos": "7/8 3.8", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 12.97, "Torque_Max": 4450, "Pressao_D": 860, "Rev_Gal": 0.52, "Perda_Vazio_psi": 64},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.24, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.21, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.15, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.96, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 7.29, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24, "Perda_Vazio_psi": 106},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.7", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.97, "Torque_Max": 13720, "Pressao_D": 1280, "Rev_Gal": 0.24, "Perda_Vazio_psi": 106},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 5.70, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.50, "Perda_Vazio_psi": 184},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.71, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.50, "Perda_Vazio_psi": 184},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 8.30, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.50, "Perda_Vazio_psi": 184},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "4/5 7.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.65, "Torque_Max": 9090, "Pressao_D": 1580, "Rev_Gal": 0.50, "Perda_Vazio_psi": 184},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 9.80, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.30, "Perda_Vazio_psi": 150},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.20, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.30, "Perda_Vazio_psi": 150},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Slick", "Build_Rate": 11.20, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.30, "Perda_Vazio_psi": 150},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "6 3/4", "Lobulos": "7/8 5.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.70, "Torque_Max": 10460, "Pressao_D": 1130, "Rev_Gal": 0.30, "Perda_Vazio_psi": 150},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 4.11, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 5.69, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 4.49, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 3.4", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 7.18, "Torque_Max": 22530, "Pressao_D": 800, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 4.11, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 5.69, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 4.49, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "GyroDrill", "Diametro_Externo_OD": "9 5/8", "Lobulos": "7/8 5.9", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 7.18, "Torque_Max": 22020, "Pressao_D": 1330, "Rev_Gal": 0.17, "Perda_Vazio_psi": 134},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Slick", "Build_Rate": 1.20, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.15, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.24, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.21, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 10.15, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Slick", "Build_Rate": 2.74, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "8", "Lobulos": "7/8 4.0", "Bent_Housing_Graus": 1.83, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 11.96, "Torque_Max": 14930, "Pressao_D": 900, "Rev_Gal": 0.17, "Perda_Vazio_psi": 126},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.25, "Tipo_Estabilizacao": "Slick", "Build_Rate": 4.70, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.25, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 7.30, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Slick", "Build_Rate": 5.80, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.50, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 8.60, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Slick", "Build_Rate": 7.00, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70},
+    {"Modelo": "Tomahawk", "Diametro_Externo_OD": "9 5/8", "Lobulos": "5/6 4.0", "Bent_Housing_Graus": 1.75, "Tipo_Estabilizacao": "Stabilized", "Build_Rate": 9.90, "Torque_Max": 23990, "Pressao_D": 1000, "Rev_Gal": 0.09, "Perda_Vazio_psi": 70}
 ]
 df_motores = pd.DataFrame(dados_motores)
-arquivo_bha = st.sidebar.file_uploader("Carregar Tally da BHA (Excel)", type=["xlsx", "xls"], key="bha_excel")
+
+# ==========================================
+# BARRA LATERAL (SIDEBAR)
+# ==========================================
+st.sidebar.header("🌍 Idioma / Language")
+idioma = st.sidebar.selectbox("Selecione / Select:", ["Português", "English", "Español"])
+t = textos[idioma]
+
+col_titulo.markdown(f"<h1 style='margin-top: 10px;'>{t['title_main']}</h1>", unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
-st.sidebar.header("⚙️ Configuração do Motor")
+st.sidebar.header(t["bha_header"])
+modo_bha = st.sidebar.radio(t["method"], [t["opt_excel"], t["opt_smart"]])
+
+arquivo_bha = None
+if modo_bha == t["opt_excel"]:
+    arquivo_bha = st.sidebar.file_uploader(t["opt_excel"], type=["xlsx", "xls"], key="bha_excel")
+elif modo_bha == t["opt_smart"]:
+    st.sidebar.success(t["msg_smart"])
+    config_bha = st.sidebar.selectbox(t["std_config"], 
+        ["Fulcrum (Build)", "Semi-Fulcrum", "Empacada (Packed)", "Pendulum (Drop)", "Semi-Pendulum", "Customizada"])
+    
+    dh_manual = st.sidebar.number_input("Diâmetro da Broca/Poço (in)" if idioma == "Português" else "Bit/Hole Size (in)", value=8.5, step=0.125)
+    
+    st.sidebar.write(t["bit_label"])
+    col_b1, col_b2 = st.sidebar.columns(2)
+    tipo_broca = col_b1.selectbox(t["bit_type"], ["PDC", "Tricônica" if idioma == "Português" else "Tricone"])
+    comp_broca = col_b2.number_input(t["bit_height"], value=0.25 if tipo_broca == "PDC" else 0.40, step=0.01)
+
+    st.sidebar.write("**Sensores MWD Intrepid**")
+    tipo_mwd = st.sidebar.selectbox("Tecnologia MWD", ["MWD PP", "MWD EM"])
+
+    st.sidebar.write(t["lwd_label"])
+    lwd_opcoes = st.sidebar.multiselect(t["lwd_select"], 
+        ["Oliden - Azimuthal GR / Resistividade", "Oliden - Densidade / Neutrão", "Oliden - Sônico"])
+
+    if config_bha == "Customizada":
+        st.sidebar.write(t["custom_options"])
+        usar_stb_custom = st.sidebar.checkbox("Incluir STB de Coluna?" if idioma == "Português" else "Include String STB?", value=True)
+        pos_stb = "Nenhuma"
+        if usar_stb_custom:
+            opcoes_pos = ["Abaixo do MWD/LWD", "Acima do MWD/LWD", "Acima dos Comandos"] if idioma == "Português" else ["Below MWD/LWD", "Above MWD/LWD", "Above Drill Collars"]
+            pos_stb_sel = st.sidebar.selectbox("Posição do STB" if idioma == "Português" else "STB Position", opcoes_pos)
+            pos_stb = ["Abaixo do MWD/LWD", "Acima do MWD/LWD", "Acima dos Comandos"][opcoes_pos.index(pos_stb_sel)]
+        
+        col_c1, col_c2 = st.sidebar.columns(2)
+        qtd_dc = col_c1.number_input("Qtd. Comandos (DC)" if idioma == "Português" else "DC Qty", min_value=0, value=2, step=1)
+        qtd_hwdp_custom = col_c2.number_input("Qtd. HWDP" if idioma == "Português" else "HWDP Qty", min_value=0, value=15, step=1)
+    
+    st.sidebar.write("**Balanço de Peso e Jar**" if idioma == "Português" else "**Weight Balance & Jar**")
+    wob_builder = st.sidebar.number_input("WOB Máximo Planejado (klbf)" if idioma == "Português" else "Max Planned WOB (klbf)", 
+                                          step=5.0, 
+                                          key="wob_side", 
+                                          on_change=sync_from_side)
+    usar_jar = st.sidebar.checkbox("Incluir Drilling Jar Automático" if idioma == "Português" else "Include Auto Drilling Jar", value=True)
+
+st.sidebar.markdown("---")
+st.sidebar.header(t["motor_config"])
 modelo = st.sidebar.selectbox("Modelo do Motor", ["GyroDrill", "Tomahawk"], key="modelo_motor")
 od = st.sidebar.selectbox("Diâmetro Externo (OD)", ["4 3/4", "5", "6 1/2", "6 3/4", "7", "7 3/4", "8", "9 5/8"], key="od_motor")
-lobulos = st.sidebar.text_input("Lóbulos e Estágios (ex: 7/8 5.7)", "7/8 5.7", key="lobulos")
+
+# Filtro dinâmico: busca os lóbulos exatos baseados no Modelo e OD selecionados
+opcoes_lobulos = df_motores[(df_motores['Modelo'] == modelo) & (df_motores['Diametro_Externo_OD'] == od)]['Lobulos'].unique().tolist()
+
+# Trava de segurança caso o usuário selecione uma combinação inexistente (ex: Tomahawk de 5")
+if not opcoes_lobulos:
+    opcoes_lobulos = ["Não disponível para este OD"]
+
+lobulos = st.sidebar.selectbox("Lóbulos e Estágios", opcoes_lobulos, key="lobulos")
 bent = st.sidebar.selectbox("Bent Housing (Graus)", [1.15, 1.25, 1.50, 1.75, 1.83, 2.00, 2.12, 2.38, 2.60, 2.77, 3.00], key="bent")
 estabilizacao = st.sidebar.radio("Tipo de BHA", ["Slick", "Stabilized"], key="tipo_bha")
 
-# Apague qualquer outro 'arquivo_banco = st.sidebar.file_uploader(...)' que estiver sobrando para baixo no seu código!
-
 # ==========================================
-# TELA PRINCIPAL - Inserção de Surveys e Slide
+# TELA PRINCIPAL - SURVEYS E PROJEÇÃO
 # ==========================================
-st.header("📍 Dados do Poço e Target")
+st.header(t["well_data"])
 col1, col2, col3 = st.columns(3)
-
 with col1:
-    st.subheader("Survey Anterior")
-    md_ant = st.number_input("MD Ant. (m)", value=970.0, step=1.0)
-    inc_ant = st.number_input("Inc Ant. (°)", value=8.5, step=0.1)
-    az_ant = st.number_input("Azimute Ant. (°)", value=40.0, step=0.1)
-
+    st.subheader(t["prev_surv"])
+    md_ant = st.number_input("MD (m)", value=970.0, step=1.0, key="md_ant")
+    inc_ant = st.number_input("Inc (°)", value=8.5, step=0.1, key="inc_ant")
+    az_ant = st.number_input("Az (°)", value=40.0, step=0.1, key="az_ant")
 with col2:
-    st.subheader("Survey Atual")
-    md_atual = st.number_input("MD Atual (m)", value=1000.0, step=1.0)
-    inc_atual = st.number_input("Inc Atual (°)", value=10.0, step=0.1)
-    az_atual = st.number_input("Azim Atual (°)", value=45.0, step=0.1)
+    st.subheader(t["curr_surv"])
+    md_atual = st.number_input("MD (m)", value=1000.0, step=1.0, key="md_atual")
+    inc_atual = st.number_input("Inc (°)", value=10.0, step=0.1, key="inc_atual")
+    az_atual = st.number_input("Az (°)", value=45.0, step=0.1, key="az_atual")
     st.markdown("---")
-    slide_realizado = st.number_input("Slide Realizado no Trecho (m)", value=0.0, step=0.1)
-
+    lbl_slide = "Slide Realizado (m)" if idioma == "Português" else "Slide Drilled (m)" if idioma == "English" else "Slide Realizado (m)"
+    slide_realizado = st.number_input(lbl_slide, value=0.0, step=0.1)
 with col3:
-    st.subheader("Target (Alvo)")
-    md_alvo = st.number_input("MD Alvo (m)", value=1030.0, step=1.0)
-    inc_alvo = st.number_input("Inc Alvo (°)", value=12.0, step=0.1)
-    az_alvo = st.number_input("Azim Alvo (°)", value=48.0, step=0.1)
+    st.subheader(t["target"])
+    md_alvo = st.number_input("MD (m)", value=1030.0, step=1.0, key="md_alvo")
+    inc_alvo = st.number_input("Inc (°)", value=12.0, step=0.1, key="inc_alvo")
+    az_alvo = st.number_input("Az (°)", value=48.0, step=0.1, key="az_alvo")
 
 st.markdown("---")
-
-# ==========================================
-# BOTÃO DE CÁLCULO INTELIGENTE
-# ==========================================
-if st.button("🚀 Calcular Projeção e Orientação"):
-    st.header("📊 Resultados e Instruções")
-    
-    # 1. CÁLCULOS DO TRECHO ANTERIOR (MOTOR YIELD REAL)
+if st.button(t["btn_calc"]):
+    st.header(t["res_inst"])
     dl_trecho = calcular_dogleg(inc_ant, az_ant, inc_atual, az_atual)
-    motor_yield_real = 0.0
-    if slide_realizado > 0:
-        motor_yield_real = dl_trecho * (30.0 / slide_realizado)
-    
-    # 2. CÁLCULO PARA O TARGET
+    motor_yield_real = (dl_trecho * (30.0 / slide_realizado)) if slide_realizado > 0 else 0.0
     dls_req, tf_req = calcular_direcional(inc_atual, az_atual, md_atual, inc_alvo, az_alvo, md_alvo)
     
-    # 3. BUSCA DO TEÓRICO NO BANCO DE DADOS
-    build_rate_100ft = 0.0
     build_rate_30m = 0.0
-    if arquivo_banco is not None:
-        df = pd.read_csv(arquivo_banco)
-        filtro = df[(df['Modelo'] == modelo) & 
-                    (df['Diametro_Externo_OD'] == od) & 
-                    (df['Bent_Housing_Graus'] == float(bent)) & 
-                    (df['Tipo_Estabilizacao'] == estabilizacao)]
-        if not filtro.empty:
-            build_rate_100ft = filtro.iloc[0]['Build_Rate_Teorico']
-            build_rate_30m = build_rate_100ft * (30.0 / 30.48)
+    filtro = df_motores[(df_motores['Modelo'] == modelo) & (df_motores['Diametro_Externo_OD'] == od) & (df_motores['Bent_Housing_Graus'] == float(bent)) & (df_motores['Tipo_Estabilizacao'] == estabilizacao)]
+    if not filtro.empty:
+        build_rate_30m = float(filtro.iloc[0]['Build_Rate']) * (30.0 / 30.48)
             
-    # 4. DECISÃO DE QUAL RENDIMENTO USAR
     rendimento_usado = motor_yield_real if motor_yield_real > 0 else build_rate_30m
-    origem_rendimento = "REAL (Calculado do último stand)" if motor_yield_real > 0 else "TEÓRICO (Catálogo Intrepid)"
+    origem_rendimento = "REAL" if motor_yield_real > 0 else "TEÓRICO / THEORETICAL"
     
-    st.info(f"**Motor:** {modelo} {od}\" | **Bent:** {bent}° | **BR Teórico:** {build_rate_30m:.2f} °/30m")
+    st.info(f"**Motor:** {modelo} {od}\" | **Bent:** {bent}° | **BR:** {build_rate_30m:.2f} °/30m")
     if motor_yield_real > 0:
-        st.success(f"**Motor Yield Real Observado:** {motor_yield_real:.2f} °/30m")
-    else:
-        st.warning("Sem dados de slide no trecho anterior. Utilizando Build Rate Teórico para as projeções.")
+        st.success(f"**Motor Yield Real:** {motor_yield_real:.2f} °/30m")
     
-    # 5. RESULTADOS FINAIS
     col4, col5, col6 = st.columns(3)
-    with col4:
-        st.metric(label="DLS Requerido", value=f"{dls_req:.2f} °/30m")
-    with col5:
-        st.metric(label="Toolface Recomendada", value=f"{tf_req:.0f}° R")
-    with col6:
-        if rendimento_usado > 0:
-            slide_m = (dls_req / rendimento_usado) * 30
-            if slide_m > (md_alvo - md_atual):
-                st.error("Alvo inatingível com este motor/rendimento!")
-            else:
-                st.metric(label="Metragem de Slide Sugerida", value=f"{slide_m:.1f} m", delta=origem_rendimento, delta_color="off")
-        else:
-            st.metric(label="Metragem de Slide", value="-")
-
-# 6. RELATÓRIO PARA WHATSAPP
-    st.markdown("---")
-    st.subheader("📱 Copiar Instrução para a Sonda")
+    col4.metric(label="DLS" if idioma == "English" else "DLS", value=f"{dls_req:.2f} °/30m")
+    col5.metric(label="Toolface", value=f"{tf_req:.0f}° R")
     
-    if rendimento_usado > 0 and slide_m <= (md_alvo - md_atual):
-        relatorio = f"""*INSTRUÇÃO DIRECIONAL - INTREPID* 🎯
-*Motor:* {modelo} {od}" | Bent: {bent}°
-*Trecho:* {md_atual}m até {md_alvo}m
-
-*PARÂMETROS:*
-- 🧭 *Toolface:* {tf_req:.0f}° R
-- 📏 *Metragem de Slide:* {slide_m:.1f} m
-- 🎯 *DLS Alvo:* {dls_req:.2f} °/30m
-
-*DADOS DO MOTOR:*
-- Rendimento Usado: {rendimento_usado:.2f} °/30m
-- Base de Cálculo: {origem_rendimento}"""
-
-        st.code(relatorio, language="markdown")
+    if rendimento_usado > 0:
+        pm_alvo = md_alvo - md_atual # Calcula a distância real do trecho
+        slide_m = (dls_req / rendimento_usado) * pm_alvo # Multiplica pela distância real
         
+        if slide_m > pm_alvo:
+            st.error("Alvo inatingível com o Build Rate atual!" if idioma == "Português" else "Unreachable target with current Build Rate!" if idioma == "English" else "¡Objetivo inalcanzable con el Build Rate actual!")
+        else:
+            col6.metric(label="Slide (m)", value=f"{slide_m:.1f} m", delta=origem_rendimento, delta_color="off")
+    else:
+        col6.metric(label="Slide (m)", value="-")
+
 # ==========================================
-# MÓDULO DE ACOMPANHAMENTO DIRECIONAL E PROJEÇÕES
-# Baseado no Petroguia (Pág. D-19) e Ouija-Board
+# MÓDULO DE ACOMPANHAMENTO DIRECIONAL (MÍNIMA CURVATURA)
 # ==========================================
 st.markdown("---")
-st.header("🎯 Acompanhamento Direcional (Mínima Curvatura)")
-
-import math
+st.header(t["head_proj"])
 
 col_s1, col_s2 = st.columns(2)
-
 with col_s1:
-    st.write("**Estação Atual (Último Survey)**")
-    md1 = st.number_input("Profundidade Medida - MD 1 (m)", min_value=0.0, value=1000.0, step=10.0, format="%.2f")
-    inc1 = st.number_input("Inclinação - I1 (graus)", min_value=0.0, max_value=180.0, value=10.0, step=0.1, format="%.2f")
-    az1 = st.number_input("Azimute - A1 (graus)", min_value=0.0, max_value=360.0, value=45.0, step=0.1, format="%.2f")
-    
-    st.write("*Coordenadas Atuais:*")
+    st.write(f"**{t['curr_surv']}**")
+    md1 = st.number_input("MD 1 (m)", min_value=0.0, value=1000.0, step=10.0, format="%.2f", key="mc_md1")
+    inc1 = st.number_input("I1 (°)", min_value=0.0, max_value=180.0, value=10.0, step=0.1, format="%.2f", key="mc_i1")
+    az1 = st.number_input("A1 (°)", min_value=0.0, max_value=360.0, value=45.0, step=0.1, format="%.2f", key="mc_a1")
     c_tvd1, c_ns1, c_ew1 = st.columns(3)
     tvd1 = c_tvd1.number_input("TVD 1 (m)", value=995.0, step=1.0)
     ns1 = c_ns1.number_input("N/S 1 (m)", value=50.0, step=1.0)
     ew1 = c_ew1.number_input("E/W 1 (m)", value=50.0, step=1.0)
 
 with col_s2:
-    st.write("**Estação Projetada (Próximo Survey / Alvo)**")
-    md2 = st.number_input("Profundidade Medida - MD 2 (m)", min_value=md1, value=md1 + 30.0, step=1.0, format="%.2f")
-    inc2 = st.number_input("Inclinação - I2 (graus)", min_value=0.0, max_value=180.0, value=12.0, step=0.1, format="%.2f")
-    az2 = st.number_input("Azimute - A2 (graus)", min_value=0.0, max_value=360.0, value=50.0, step=0.1, format="%.2f")
+    st.write(f"**{t['target']}**")
+    md2 = st.number_input("MD 2 (m)", min_value=md1, value=md1 + 30.0, step=1.0, format="%.2f", key="mc_md2")
+    inc2 = st.number_input("I2 (°)", min_value=0.0, max_value=180.0, value=12.0, step=0.1, format="%.2f", key="mc_i2")
+    az2 = st.number_input("A2 (°)", min_value=0.0, max_value=360.0, value=50.0, step=0.1, format="%.2f", key="mc_a2")
 
-# --- CÁLCULO DAS FÓRMULAS DO PETROGUIA (PÁG. D-19) ---
-pm = md2 - md1 # Intervalo medido (Pm)
+tf_deg, dls, slide_meters, rotary_meters = 0.0, 0.0, 0.0, 0.0 
+pm = md2 - md1 
 
 if pm > 0:
-    # Conversão de graus para radianos para uso trigonométrico
-    i1_rad = math.radians(inc1)
-    i2_rad = math.radians(inc2)
-    a1_rad = math.radians(az1)
-    a2_rad = math.radians(az2)
-    
-    # Cálculo do Beta em radianos (Severidade entre estações)
-    cos_beta = math.cos(i2_rad - i1_rad) - (math.sin(i1_rad) * math.sin(i2_rad) * (1.0 - math.cos(a2_rad - a1_rad)))
-    cos_beta = max(-1.0, min(1.0, cos_beta)) # Segurança matemática
+    i1_rad, i2_rad = math.radians(inc1), math.radians(inc2)
+    a1_rad, a2_rad = math.radians(az1), math.radians(az2)
+    cos_beta = max(-1.0, min(1.0, math.cos(i2_rad - i1_rad) - (math.sin(i1_rad) * math.sin(i2_rad) * (1.0 - math.cos(a2_rad - a1_rad)))))
     beta_rad = math.acos(cos_beta)
     
     if beta_rad == 0:
-        F = 1.0
-        dls = 0.0
+        F, dls = 1.0, 0.0
     else:
-        # Fator de suavização (F) e DLS (°/30m)
         F = (2.0 / beta_rad) * math.tan(beta_rad / 2.0)
         dls = beta_rad * (180.0 / math.pi) * (30.0 / pm)
         
-    # Variações Parciais e Coordenadas Finais
     delta_ns = (pm / 2.0) * (math.sin(i1_rad) * math.cos(a1_rad) + math.sin(i2_rad) * math.cos(a2_rad)) * F
     delta_ew = (pm / 2.0) * (math.sin(i1_rad) * math.sin(a1_rad) + math.sin(i2_rad) * math.sin(a2_rad)) * F
     pv = (pm / 2.0) * (math.cos(i1_rad) + math.cos(i2_rad)) * F
-    af = (pm / 2.0) * (math.sin(i1_rad) + math.sin(i2_rad)) * F
-    
-    tvd2 = tvd1 + pv
-    ns2 = ns1 + delta_ns
-    ew2 = ew1 + delta_ew
+    tvd2, ns2, ew2 = tvd1 + pv, ns1 + delta_ns, ew1 + delta_ew
     
     st.write("---")
-    st.write("**📍 Resultados da Projeção de Mínima Curvatura**")
-    
     res1, res2, res3, res4, res5 = st.columns(5)
-    res1.metric("TVD Final (m)", f"{tvd2:.2f}", f"+ {pv:.2f} m", delta_color="off")
-    res2.metric("N/S Final (m)", f"{ns2:.2f}", f"{delta_ns:+.2f} m", delta_color="off")
-    res3.metric("E/W Final (m)", f"{ew2:.2f}", f"{delta_ew:+.2f} m", delta_color="off")
-    res4.metric("DLS Total (°/30m)", f"{dls:.2f}")
-    res5.metric("Afastamento (m)", f"{math.sqrt(ns2**2 + ew2**2):.2f}")
+    res1.metric("TVD (m)", f"{tvd2:.2f}", f"+ {pv:.2f} m", delta_color="off")
+    res2.metric("N/S (m)", f"{ns2:.2f}", f"{delta_ns:+.2f} m", delta_color="off")
+    res3.metric("E/W (m)", f"{ew2:.2f}", f"{delta_ew:+.2f} m", delta_color="off")
+    res4.metric("DLS (°/30m)", f"{dls:.2f}")
+    res5.metric("Disp. (m)", f"{math.sqrt(ns2**2 + ew2**2):.2f}")
     
-   # ==========================================
-    # OUIJA-BOARD E ESTRATÉGIA DE SLIDE
-    # ==========================================
-    st.write("---")
-    st.write("### 🧭 Ouija-Board (Orientação da Ferramenta de Desvio)")
-    st.markdown("Cálculo da Toolface (GTF) necessária para convergir do Survey 1 para o Alvo 2.")
-    
-    # Cálculo da Toolface Gravitacional Requerida
+    st.write("### 🧭 Ouija-Board")
     if beta_rad > 0:
+        # Fórmulas corrigidas para o vetor da Gravity Toolface (GTF)
         tf_y = math.sin(a2_rad - a1_rad) * math.sin(i2_rad)
-        tf_x = math.cos(i2_rad) * math.sin(i1_rad) - math.sin(i2_rad) * math.cos(i1_rad) * math.cos(a2_rad - a1_rad)
-        tf_rad = math.atan2(tf_y, tf_x)
-        tf_deg = math.degrees(tf_rad)
-        if tf_deg < 0:
-            tf_deg += 360.0
+        tf_x = math.sin(i2_rad) * math.cos(i1_rad) * math.cos(a2_rad - a1_rad) - math.sin(i1_rad) * math.cos(i2_rad)
+        tf_deg = math.degrees(math.atan2(tf_y, tf_x))
+        if tf_deg < 0: tf_deg += 360.0
     else:
         tf_deg = 0.0
 
     c_ob1, c_ob2, c_ob3 = st.columns(3)
-    c_ob1.metric("Toolface Requerida (GTF)", f"{tf_deg:.0f}°")
-    c_ob2.metric("DLS Necessário na Seção", f"{dls:.2f} °/30m")
+    c_ob1.metric("GTF Requerida", f"{tf_deg:.0f}°")
+    c_ob2.metric("DLS da Seção", f"{dls:.2f} °/30m")
     
-    # --- BUSCA INSTANTÂNEA NO BANCO EMBUTIDO ---
     build_rate_banco = 0.0
     try:
-        filtro_motor = df_motores[
-            (df_motores['Modelo'] == modelo) & 
-            (df_motores['Diametro_Externo_OD'] == od) &
-            (df_motores['Bent_Housing_Graus'] == float(bent)) &
-            (df_motores['Tipo_Estabilizacao'] == estabilizacao)
-        ]
-        
+        df_m_clean = df_motores.copy()
+        filtro_motor = df_m_clean[(df_m_clean['Modelo'].str.upper() == str(modelo).upper()) & 
+                                  (df_m_clean['Diametro_Externo_OD'] == str(od)) &
+                                  (df_m_clean['Bent_Housing_Graus'] == float(bent)) &
+                                  (df_m_clean['Tipo_Estabilizacao'].str.upper() == str(estabilizacao).upper())]
         if not filtro_motor.empty and 'Build_Rate' in filtro_motor.columns:
             build_rate_banco = float(filtro_motor.iloc[0]['Build_Rate'])
-    except Exception as e:
-        pass
+    except Exception: pass
 
-    # Define o valor final: usa o do banco se achar, senão faz a estimativa
     valor_padrao_br = build_rate_banco if build_rate_banco > 0 else float(max(round(dls + 0.5, 1), 2.0))
-
-    # Input do Build Rate
-    build_rate = c_ob3.number_input("Build Rate da Ferramenta (°/30m)", 
-                                    value=valor_padrao_br, 
-                                    step=0.1, 
-                                    help="Dogleg severity (DLS) esperado do conjunto em modo Slide.")
-    
-    if build_rate_banco > 0:
-        c_ob3.success(f"✅ Motor Encontrado!")
-    else:
-        c_ob3.warning(f"⚠️ Motor não cadastrado. Usando estimativa.")
+    build_rate = c_ob3.number_input("Build Rate (°/30m)", value=valor_padrao_br, step=0.1)
     
     if build_rate > 0:
-        # Lógica de perfuração (Slide vs Rotate)
         slide_meters = (dls / build_rate) * pm
-        
+        rotary_meters = max(0, pm - slide_meters)
         if slide_meters > pm:
-            st.warning(f"⚠️ **Atenção:** O Build Rate do seu motor ({build_rate:.1f} °/30m) é INSUFICIENTE para atingir esse alvo. Para convergir em {pm:.0f}m, você precisa de um conjunto com pelo menos **{dls:.2f} °/30m** ou precisará aumentar a metragem de avanço (MD 2).")
+            st.warning(f"⚠️ Build Rate INSUFICIENTE. Precisa de {dls:.2f} °/30m.")
         else:
-            rotary_meters = pm - slide_meters
-            st.success(f"✅ **Estratégia Recomendada:**\n1. Deslize (Slide) **{slide_meters:.1f} m** orientando a Toolface em **{tf_deg:.0f}°**.\n2. Perfure Rotativo os **{rotary_meters:.1f} m** restantes para atingir o alvo de {inc2}° de Inc e {az2}° de Azimute.")
-
-    with st.expander("Ver Variáveis de Cálculo (Mínima Curvatura)"):
-        st.code(f"Intervalo (Pm) = {pm:.2f} m\nFator de Suavização (F) = {F:.6f}\nÂngulo Beta (rad) = {beta_rad:.6f}\nIntervalo Vertical (pv) = {pv:.2f} m", language="text")
-
-elif pm == 0:
-    st.info("Altere a MD 2 para calcular a projeção.")
-else:
-    st.error("A MD Projetada (MD 2) não pode ser menor que a MD Atual.")
-
-# ==========================================
-# MÓDULO DE ANÁLISE DE BHA (TENDÊNCIA)
-# ==========================================
-st.markdown("---")
-st.header("🔧 Análise de Tendência da BHA")
-st.markdown("Verifique o comportamento natural da ferramenta em modo rotativo com base na posição dos estabilizadores.")
-
-col7, col8 = st.columns(2)
-
-with col7:
-    st.write("**Posição dos Estabilizadores**")
-    dist_primeiro_estab = st.number_input("Distância da broca até o 1º Estabilizador (m)", value=1.5, step=0.5)
-    dist_segundo_estab = st.number_input("Distância da broca até o 2º Estabilizador (m)", value=10.5, step=0.5)
-
-with col8:
-    st.write("**Diagnóstico da BHA**")
-    
-    tendencia = ""
-    efeito = ""
-    cor = "normal"
-    
-    # LÓGICA BÁSICA DE COMPORTAMENTO DA BHA
-    # 1. Avalia se o 1º Estabilizador é Near Bit (muito perto da broca, ex: < 2.5m)
-    if dist_primeiro_estab <= 2.5:
-        # Se o 2º Estabilizador estiver perto (Packed) ou longe (Fulcrum)
-        if (dist_segundo_estab - dist_primeiro_estab) <= 6.0:
-            tendencia = "PACKED HOLE (Rígida)"
-            efeito = "Tendência de MANTER o ângulo e azimute (Hold)."
-            cor = "blue"
-        else:
-            tendencia = "FULCRUM (Alavanca)"
-            efeito = "Tendência de GANHO de ângulo (Build)."
-            cor = "red"
-            
-    # 2. Avalia se o 1º Estabilizador está distante da broca (Pendulum)
-    elif dist_primeiro_estab > 2.5 and dist_primeiro_estab <= 15.0:
-        tendencia = "PENDULUM (Pêndulo)"
-        efeito = "Tendência de QUEDA de ângulo (Drop)."
-        cor = "orange"
-        
-    else:
-        tendencia = "BHA LISa (Slick) / Indefinida"
-        efeito = "Comportamento instável. Depende da rigidez dos comandos."
-        cor = "gray"
-
-    # Exibição do Resultado
-    st.info(f"**Tipo de Montagem:** {tendencia}")
-    st.success(f"**Efeito no Poço:** {efeito}")
-    
-    # Explicação interativa
-    with st.expander("Por que isso acontece?"):
-        st.write("A distância entre os estabilizadores altera onde a ferramenta encosta na parede do poço. Em uma BHA Fulcrum, o peso aplicado (WOB) dobra a ferramenta acima do primeiro estabilizador, forçando a broca para a parede superior do poço. Já no Pendulum, o peso dos comandos abaixo do primeiro estabilizador age como um pêndulo, puxando a broca para o centro da terra.")
+            st.success(f"✅ Slide **{slide_meters:.1f} m** @ **{tf_deg:.0f}°** | Rotary **{rotary_meters:.1f} m**.")
 
 # ==========================================
 # MÓDULO DE ENGENHARIA E HIDRÁULICA DO MOTOR
 # ==========================================
 st.markdown("---")
-st.header("⚙️ Dashboard de Engenharia e Desempenho")
-st.markdown("Cálculos de RPM, Potência, Eficiência e Perda de Carga do Motor.")
+st.header(t["head_eng"])
 
-col9, col10, col11 = st.columns(3)
+col8, col9 = st.columns(2)
+with col8:
+    st.write(t["fluid_param"])
+    peso_lama_ppg = st.number_input("Mud Weight (ppg)", value=9.0, step=0.1)
+    vazao_gpm = st.number_input("Flow Rate (GPM)", value=450.0, step=10.0)
 
 with col9:
-    st.write("**Parâmetros Operacionais**")
-    vazao_gpm = st.number_input("Vazão da Bomba (GPM)", value=400.0, step=10.0)
-    rpm_superficie = st.number_input("Rotação da Superfície/Top Drive (RPM)", value=40.0, step=5.0)
-    
-    # BUSCA DIRETO NO BANCO DE DADOS EMBUTIDO
-    rev_gal_teorico = 0.0
-    try:
-        filtro = df_motores[(df_motores['Modelo'] == modelo) & 
-                            (df_motores['Diametro_Externo_OD'] == od) & 
-                            (df_motores['Bent_Housing_Graus'] == float(bent)) & 
-                            (df_motores['Tipo_Estabilizacao'] == estabilizacao)]
-        if not filtro.empty and 'Rev_Gal' in filtro.columns:
-            rev_gal_teorico = float(filtro.iloc[0]['Rev_Gal'])
-    except Exception:
-        pass
-            
-    rev_gal = st.number_input("Fator do Motor (Rev/Gal)", value=float(rev_gal_teorico), step=0.01)
-    peso_lama_ppg = st.number_input("Peso da Lama (ppg)", value=9.0, step=0.1)
+    st.write(t["rheology"])
+    pv = st.number_input("PV (cP)", value=15.0, step=1.0)
+    yp = st.number_input("YP (lb/100ft²)", value=25.0, step=1.0)
+    rpm_superficie = st.number_input("Surface RPM", value=40.0, step=5.0)
 
+st.write("---")
+col10, col11 = st.columns(2)
 with col10:
-    st.write("**Parâmetros de Fundo e PDM**")
+    st.write(t["downhole_param"])
     tvd_m = st.number_input("TVD (m)", value=1000.0, step=10.0)
-    torque_lbft = st.number_input("Torque Gerado (lb-ft)", value=2500.0, step=100.0)
-    pressao_dif = st.number_input("Pressão Diferencial Lida (psi)", value=300.0, step=10.0)
+    torque_lbft = st.number_input("Torque (lb-ft)", value=2500.0, step=100.0)
+    pressao_dif = st.number_input("Diff Pressure (psi)", value=300.0, step=10.0)
     
-    # BUSCA DE OFF-BOTTOM (Se existir na tabela, senão usa estimativa padrão)
-    off_bottom_manual = 0.0
+    perda_vazio_banco, pressao_d_max, rev_gal = 150.0, 1000.0, 0.5 
     try:
-        if not filtro.empty and 'Off_Bottom_psi' in filtro.columns:
-            off_bottom_manual = float(filtro.iloc[0]['Off_Bottom_psi'])
-    except Exception:
-        pass
+        if 'filtro_motor' in locals() and not filtro_motor.empty:
+            perda_vazio_banco = float(filtro_motor.iloc[0].get('Perda_Vazio_psi', 150.0))
+            pressao_d_max = float(filtro_motor.iloc[0].get('Pressao_D', 1000.0))
+            rev_gal = float(filtro_motor.iloc[0].get('Rev_Gal', 0.5))
+    except Exception: pass
             
-    off_bottom_calc = st.number_input("Off-Bottom (psi)", value=float(off_bottom_manual) if off_bottom_manual > 0 else 250.0, step=10.0)
-    motor_total_press_drop = off_bottom_calc + pressao_dif
-
+    st.info(f"⚙️ **No-Load Loss:** {perda_vazio_banco:.0f} psi")
+    motor_total_press_drop = perda_vazio_banco + pressao_dif
+    
 with col11:
-    st.write("**Desempenho Calculado**")
-    
+    st.write(t["calc_perf"])
     rpm_motor = vazao_gpm * rev_gal
-    st.metric(label="Velocidade Total da Broca", value=f"{(rpm_motor + rpm_superficie):.0f} RPM", 
-              delta=f"Motor: {rpm_motor:.0f} | Mesa: {rpm_superficie:.0f}", delta_color="off")
-    
+    st.metric(label="Total Bit Speed (RPM)", value=f"{(rpm_motor + rpm_superficie):.0f}", delta=f"Motor: {rpm_motor:.0f} | Mesa: {rpm_superficie:.0f}", delta_color="off")
     hp_mec = (torque_lbft * rpm_motor) / 5252 if rpm_motor > 0 else 0
-    st.metric(label="Potência Mecânica (Motor)", value=f"{hp_mec:.1f} HP")
-    
-    st.metric(label="ΔP Total do Motor", value=f"{motor_total_press_drop:.0f} psi", 
-              delta=f"Diff: {pressao_dif:.0f} | Off-Bot: {off_bottom_calc:.0f}", delta_color="off")# ==========================================
+    st.metric(label="Motor HP", value=f"{hp_mec:.1f} HP")
+    st.metric(label="Total ΔP Motor", value=f"{motor_total_press_drop:.0f} psi", delta=f"Diff: {pressao_dif:.0f} | Vazio: {perda_vazio_banco:.0f}", delta_color="off")
+    eficiencia = (pressao_dif / pressao_d_max) * 100 if pressao_d_max > 0 else 0.0
+    st.metric(label="Eficiência Motor", value=f"{eficiencia:.1f} %", help=f"Max ΔP = {pressao_d_max:.0f} psi")
 
-# ==========================================
-# MÓDULO DE HIDRÁULICA DA BROCA E POÇO
-# ==========================================
-st.markdown("---")
-st.header("🌊 Dashboard de Hidráulica")
-
-col12, col13 = st.columns(2)
-
-with col12:
-    st.write("**Parâmetros da Broca e Poço**")
-    tfa = st.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f")
-    dh = st.number_input("Diâmetro do Poço / Hole Diameter (in)", value=8.5, step=0.125)
-
-with col13:
-    st.write("**Resultados Hidráulicos na Broca**")
-    if tfa > 0:
-        bit_press_drop = (vazao_gpm**2 * peso_lama_ppg) / (10858 * (tfa**2))
-        jet_velocity_m = ((0.32086 * vazao_gpm) / tfa) * 0.3048
-    else:
-        bit_press_drop = 0
-        jet_velocity_m = 0
-        
-    st.metric(label="Queda de Pressão na Broca (ΔP)", value=f"{bit_press_drop:.0f} psi")
-    st.metric(label="Velocidade do Jato", value=f"{jet_velocity_m:.1f} m/s")
-    
 # ==========================================
 # MÓDULO DE COMPOSIÇÃO DA COLUNA (BHA + DP)
 # ==========================================
 st.markdown("---")
-st.header("📊 Composição da Coluna e Análise de Seção")
+st.header(t["head_bha"])
 
-# Variáveis globais de rastreamento
+st.write("**Parâmetros Base do Poço e Broca**")
+col_poco1, col_poco2 = st.columns(2)
+dh = col_poco1.number_input("Diâmetro do Poço / Hole Diameter (in)", value=dh_manual if modo_bha == t["opt_smart"] else 8.5, step=0.125)
+tfa = col_poco2.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f")
+
 vol_total_interno_bha = 0.0
 vol_total_anular_bha = 0.0
 peso_total_bha = 0.0
 comp_total_bha = 0.0 
+resultados_bha = []
 
-if arquivo_bha is not None:
+if modo_bha == "Excel (Tally)" and arquivo_bha is not None:
     try:
         df_bha = pd.read_excel(arquivo_bha, header=None, skiprows=11, nrows=8)
-        resultados_bha = []
-        
         for index, row in df_bha.iterrows():
             comp_nome = str(row[4]) if pd.notna(row[4]) else str(row[3]) 
-            desc_upper = comp_nome.upper()
             od_ferramenta = pd.to_numeric(row[5], errors='coerce')
-            id_val = row[6]
-            
-            # RESGATE DOS PESOS COMPLETOS
-            peso_raw = str(row[9]) if pd.notna(row[9]) else ""
-            wt_lb_ft, comp_wt_klbs, tot_wt_klbs = "-", "-", "-"
-            if peso_raw and "/" in peso_raw:
-                partes = [p.strip() for p in peso_raw.split("/")]
-                if len(partes) >= 1: wt_lb_ft = partes[0]
-                if len(partes) >= 2: 
-                    comp_wt_klbs = partes[1]
-                    try: peso_total_bha += float(comp_wt_klbs.replace(',', '.'))
-                    except: pass
-                if len(partes) >= 3: tot_wt_klbs = partes[2]
-            
+            id_val, peso_raw = row[6], str(row[9]) if pd.notna(row[9]) else ""
             comp_individual = pd.to_numeric(row[10], errors='coerce')
             if pd.isna(comp_individual): comp_individual = 0.0
+            comp_wt_klbs = 0.0
+            if peso_raw and "/" in peso_raw:
+                try: comp_wt_klbs = float([p.strip() for p in peso_raw.split("/")][1].replace(',', '.'))
+                except: pass
+            id_ferramenta = pd.to_numeric(id_val, errors='coerce') if not pd.isna(id_val) else "-"
             
-            id_ferramenta, v_anular_m, vol_interno_bbl, vol_anular_bbl = "-", 0, 0, 0
+            qtd_itens = 1
+            if comp_individual > 12.0 and not comp_nome.strip()[0].isdigit():
+                qtd_itens = max(1, round(comp_individual / 9.4))
+                comp_individual = comp_individual / qtd_itens
+                comp_wt_klbs = comp_wt_klbs / qtd_itens
             
-            if pd.notna(od_ferramenta) and od_ferramenta > 0:
-                comp_total_bha += comp_individual
-                
-                if "BROCA" in desc_upper:
-                    id_ferramenta = "TFA"
-                    if tfa > 0: v_anular_m = ((0.32086 * vazao_gpm) / tfa) * 60 * 0.3048
-                else:
-                    if "PDM" in desc_upper or "CAMISA" in desc_upper or "MOTOR" in desc_upper: id_ferramenta = 2.50
-                    elif "STB" in desc_upper or "ESTABILIZADOR" in desc_upper or "DRILL COLLAR" in desc_upper or "DC " in desc_upper: id_ferramenta = 2.8125
-                    elif pd.isna(id_val) or str(id_val).strip() == "" or id_val == 0:
-                        if any(ferramenta in desc_upper for ferramenta in ["UBHO", "GAP", "MONEL"]): id_ferramenta = 3.25
-                        else: id_ferramenta = "-"
-                    else:
-                        id_ferramenta = pd.to_numeric(id_val, errors='coerce')
-                        if pd.isna(id_ferramenta): id_ferramenta = "-"
-                    
-                    if (dh**2 - od_ferramenta**2) > 0:
-                        v_anular_m = ((24.51 * vazao_gpm) / (dh**2 - od_ferramenta**2)) * 0.3048
-                        cap_anular_bbl_m = (((dh**2) - (od_ferramenta**2)) / 1029.4) * 3.28084
-                        vol_anular_bbl = cap_anular_bbl_m * comp_individual
-                        vol_total_anular_bha += vol_anular_bbl
-                    
-                    if isinstance(id_ferramenta, (int, float)) and id_ferramenta > 0:
-                        cap_int_bbl_m = ((id_ferramenta**2) / 1029.4) * 3.28084
-                        vol_interno_bbl = cap_int_bbl_m * comp_individual
-                        vol_total_interno_bha += vol_interno_bbl
-                
-                resultados_bha.append({
-                    "Componente": comp_nome, "OD": od_ferramenta, "ID": id_ferramenta,
-                    "lb/ft": wt_lb_ft, "Comp(klbs)": comp_wt_klbs, "Acum(klbs)": tot_wt_klbs,
-                    "C (m)": round(comp_individual, 2), "Vel (m/min)": round(v_anular_m, 1),
-                    "V Int (bbl)": round(vol_interno_bbl, 2) if vol_interno_bbl > 0 else "-",
-                    "V Anu (bbl)": round(vol_anular_bbl, 2) if vol_anular_bbl > 0 else "-"
-                })
-        
-        if len(resultados_bha) > 0:
-            st.write(f"**1. Bottom Hole Assembly (BHA)** - Comprimento Total: {comp_total_bha:.2f} m")
-            df_resultados = pd.DataFrame(resultados_bha)
-            def colorir(val):
-                if isinstance(val, (int, float)):
-                    if val < 30: return 'background-color: #ffcccc; color: black;'
-                    elif val > 60 and val < 1000: return 'background-color: #ffe6cc; color: black;'
-                    elif val >= 1000: return 'background-color: #cce5ff; color: black;'
-                    return 'background-color: #ccffcc; color: black;'
-                return ''
-            st.dataframe(df_resultados.style.map(colorir, subset=['Vel (m/min)']), use_container_width=True)
-            
-            # WOB disponível na BHA
-            bf = 1.0 - (peso_lama_ppg / 65.5)
-            peso_disp = peso_total_bha * bf
-            st.info(f"⚖️ **WOB Máximo Disponível (BHA Flutuada):** {peso_disp:.1f} klbs | **Peso no Ar:** {peso_total_bha:.1f} klbs")
-            
-    except Exception as e:
-        st.error(f"Erro ao processar BHA: {e}")
-else:
-    st.info("👆 Carregue o Tally da BHA (Excel) para ver a seção inferior.")
+            resultados_bha.append({
+                "Ordem": len(resultados_bha) + 1, "Qtd": qtd_itens,
+                "Componente": comp_nome.strip(), "OD": od_ferramenta, "ID": id_ferramenta,
+                "C Unitário (m)": comp_individual, "Peso Unit (klbs)": comp_wt_klbs
+            })
+    except Exception as e: st.error(f"Erro Excel: {e}")
 
-# --- SEÇÃO DOS DRILL PIPES ---
+elif modo_bha == "Construtor Inteligente":
+    stb_fg, stb_ug = dh_manual - 0.125, dh_manual - 0.25
+    
+    # --- DIMENSIONAMENTO SEGUNDO PETROGUIA (SEÇÃO D) ---
+    if dh_manual >= 16.0: od_tub, id_tub, fator_p = 9.5, 3.0, 2.5
+    elif dh_manual >= 12.25: od_tub, id_tub, fator_p = 8.0, 2.8125, 1.8
+    elif dh_manual >= 8.5: od_tub, id_tub, fator_p = 6.75, 2.25, 1.0
+    else: od_tub, id_tub, fator_p = 4.75, 1.50, 0.5
+        
+    resultados_bha.append({"Qtd": 1, "Componente": f"BROCA {dh_manual}\"", "OD": dh_manual, "ID": "TFA", "C Unitário (m)": comp_broca, "Peso Unit (klbs)": 0.1})
+    
+    ferramentas_direcionais = []
+    if tipo_mwd == "MWD PP":
+        ferramentas_direcionais.append({"Qtd": 1, "Componente": f"UBHO {od_tub}\"", "OD": od_tub, "ID": 3.25, "C Unitário (m)": 0.8, "Peso Unit (klbs)": 0.5 * fator_p})
+        ferramentas_direcionais.append({"Qtd": 1, "Componente": f"MWD PP {od_tub}\"", "OD": od_tub, "ID": id_tub, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.0 * fator_p})
+    else:
+        ferramentas_direcionais.append({"Qtd": 1, "Componente": f"MWD EM {od_tub}\"", "OD": od_tub, "ID": id_tub, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.0 * fator_p})
+        ferramentas_direcionais.append({"Qtd": 1, "Componente": f"GAP SUB {od_tub}\"", "OD": od_tub, "ID": 3.25, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.8 * fator_p})
+        
+    ferramentas_direcionais.append({"Qtd": 1, "Componente": f"MONEL NMDC {od_tub}\"", "OD": od_tub, "ID": 2.8125, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.1 * fator_p})
+
+    for lwd in lwd_opcoes:
+        if "Resistividade" in lwd: ferramentas_direcionais.append({"Qtd": 1, "Componente": f"LWD RES {od_tub}\"", "OD": od_tub, "ID": id_tub, "C Unitário (m)": 5.5, "Peso Unit (klbs)": 1.8 * fator_p})
+        elif "Densidade" in lwd: ferramentas_direcionais.append({"Qtd": 1, "Componente": f"LWD DENS {od_tub}\"", "OD": od_tub, "ID": id_tub, "C Unitário (m)": 6.5, "Peso Unit (klbs)": 2.2 * fator_p})
+        elif "Sônico" in lwd: ferramentas_direcionais.append({"Qtd": 1, "Componente": f"LWD SONIC {od_tub}\"", "OD": od_tub, "ID": id_tub, "C Unitário (m)": 4.5, "Peso Unit (klbs)": 1.5 * fator_p})
+
+    if config_bha in ["Fulcrum (Build)", "Semi-Fulcrum", "Empacada (Packed)"]:
+        stb_escolhido = stb_fg if "Fulcrum" in config_bha or "Packed" in config_bha else stb_ug
+        resultados_bha.append({"Qtd": 1, "Componente": f"PDM {od}\" @ CAMISA {stb_escolhido}\"", "OD": float(od.split()[0]), "ID": 2.50, "C Unitário (m)": 8.5, "Peso Unit (klbs)": 2.5})
+        resultados_bha.extend(ferramentas_direcionais)
+        if "Packed" in config_bha: resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_fg}\"", "OD": stb_fg, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+        resultados_bha.append({"Qtd": 1, "Componente": f"DRILL COLLAR {od_tub}\"", "OD": od_tub, "ID": 2.8125, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.1 * fator_p})
+        resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_ug}\"", "OD": stb_ug, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+
+    elif config_bha in ["Pendulum (Drop)", "Semi-Pendulum"]:
+        stb_escolhido = stb_fg if "Pendulum" in config_bha else stb_ug
+        resultados_bha.append({"Qtd": 1, "Componente": f"PDM {od}\" SLICK", "OD": float(od.split()[0]), "ID": 2.50, "C Unitário (m)": 8.5, "Peso Unit (klbs)": 2.5})
+        resultados_bha.extend(ferramentas_direcionais)
+        resultados_bha.append({"Qtd": 2, "Componente": f"DRILL COLLAR {od_tub}\"", "OD": od_tub, "ID": 2.8125, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.1 * fator_p})
+        resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_escolhido}\"", "OD": stb_escolhido, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+
+    elif config_bha == "Customizada":
+        resultados_bha.append({"Qtd": 1, "Componente": f"PDM {od}\" {lobulos}", "OD": float(od.split()[0]), "ID": 2.50, "C Unitário (m)": 8.5, "Peso Unit (klbs)": 2.5})
+        if usar_stb_custom and pos_stb == "Abaixo do MWD/LWD":
+            resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_fg}\"", "OD": stb_fg, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+            
+        resultados_bha.extend(ferramentas_direcionais)
+        
+        if usar_stb_custom and pos_stb == "Acima do MWD/LWD":
+            resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_fg}\"", "OD": stb_fg, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+            
+        if qtd_dc > 0:
+            resultados_bha.append({"Qtd": int(qtd_dc), "Componente": f"DRILL COLLAR {od_tub}\"", "OD": od_tub, "ID": 2.8125, "C Unitário (m)": 9.2, "Peso Unit (klbs)": 3.1 * fator_p})
+            
+        if usar_stb_custom and pos_stb == "Acima dos Comandos":
+            resultados_bha.append({"Qtd": 1, "Componente": f"STB {stb_fg}\"", "OD": stb_fg, "ID": 2.8125, "C Unitário (m)": 1.5, "Peso Unit (klbs)": 0.5})
+
+   # Preenchimento Neutro / Drilling Jar
+    # Atualizamos o nome da chave para o peso unitário e usamos o novo wob_side
+    peso_atual = sum(item.get("Peso Unit (klbs)", 0.0) * item.get("Qtd", 1) for item in resultados_bha)
+    deficit = (st.session_state.wob_side * 1.2 / 0.85) - peso_atual
+    peso_hwdp_junta = 1.53 if dh_manual >= 8.5 else 0.8
+    qtd_hwdp = max(15, math.ceil(deficit / peso_hwdp_junta)) if deficit > 0 else 15
+    
+    if usar_jar:
+        qtd_hwdp_abaixo = math.ceil(deficit / peso_hwdp_junta) if deficit > 0 else 0
+        if qtd_hwdp_abaixo > 0:
+            resultados_bha.append({"Qtd": int(qtd_hwdp_abaixo), "Componente": "HWDP 5\"", "OD": 5.0, "ID": 3.0, "C Unitário (m)": 9.4, "Peso Unit (klbs)": peso_hwdp_junta})
+        
+        resultados_bha.append({"Qtd": 1, "Componente": f"DRILLING JAR {6.25 if dh_manual >= 8.5 else 4.75}\"", "OD": 6.25 if dh_manual >= 8.5 else 4.75, "ID": 2.75, "C Unitário (m)": 9.5, "Peso Unit (klbs)": 2.8 * fator_p})
+        
+        qtd_hwdp_acima = max(3, 15 - qtd_hwdp_abaixo) if config_bha != "Customizada" else max(1, qtd_hwdp_custom - qtd_hwdp_abaixo)
+        resultados_bha.append({"Qtd": int(qtd_hwdp_acima), "Componente": "HWDP 5\"", "OD": 5.0, "ID": 3.0, "C Unitário (m)": 9.4, "Peso Unit (klbs)": peso_hwdp_junta})
+    else:
+        qtd_final_hwdp = qtd_hwdp if config_bha != "Customizada" else qtd_hwdp_custom
+        if qtd_final_hwdp > 0:
+            resultados_bha.append({"Qtd": int(qtd_final_hwdp), "Componente": "HWDP", "OD": 5.0, "ID": 3.0, "C Unitário (m)": 9.4, "Peso Unit (klbs)": peso_hwdp_junta})
+
+    for i, item in enumerate(resultados_bha):
+        item["Ordem"] = i + 1
+
+# --- TABELA TOTALMENTE CUSTOMIZÁVEL (BHA EDITÁVEL) ---
+bha_final = []
+acum_klbs = 0.0
+
+if len(resultados_bha) > 0:
+    st.write("✏️ **1. Edição da BHA:** O modelo base foi gerado. Altere as **Quantidades (Qtd)** e a **Ordem**. Note que o 'C (m)' e o 'Peso' nesta tabela são valores UNITÁRIOS.")
+
+    df_bha_inputs = pd.DataFrame(resultados_bha)[["Ordem", "Qtd", "Componente", "OD", "ID", "C Unitário (m)", "Peso Unit (klbs)"]]
+
+    df_bha_editado = st.data_editor(
+        df_bha_inputs,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="editor_bha"
+    )
+
+    bha_para_calcular = df_bha_editado.to_dict('records')
+    bha_para_calcular = sorted(bha_para_calcular, key=lambda x: pd.to_numeric(x.get("Ordem", 999), errors='coerce'))
+
+    # Refaz a numeração da ordem para evitar furos ou duplicatas no relatório
+    for i, item in enumerate(bha_para_calcular):
+        item["Ordem"] = i + 1
+
+    for item in bha_para_calcular:
+        qtd = pd.to_numeric(item.get("Qtd", 1), errors='coerce')
+        if pd.isna(qtd) or qtd <= 0: qtd = 1
+        
+        comp_nome = str(item.get("Componente", "")).upper()
+        od_f = pd.to_numeric(item.get("OD"), errors='coerce')
+        id_f = item.get("ID")
+        
+        comp_unit = pd.to_numeric(item.get("C Unitário (m)"), errors='coerce')
+        peso_unit = pd.to_numeric(item.get("Peso Unit (klbs)"), errors='coerce')
+        
+        if pd.isna(comp_unit): comp_unit = 0.0
+        if pd.isna(peso_unit): peso_unit = 0.0
+        
+        # O Pulo do Gato: Multiplica os valores unitários pela quantidade informada!
+        comp_m = comp_unit * qtd
+        peso_k = peso_unit * qtd
+        
+        v_anu, v_int, v_anu_bbl = 0, 0, 0
+        
+        if isinstance(od_f, (int, float)) and od_f > 0:
+            comp_total_bha += comp_m
+            peso_total_bha += peso_k
+            acum_klbs += peso_k
+            
+            if "BROCA" in comp_nome and tfa > 0:
+                v_anu = ((0.32086 * vazao_gpm) / tfa) * 60 * 0.3048 if 'vazao_gpm' in locals() else 0
+            elif (dh**2 - od_f**2) > 0:
+                v_anu = ((24.51 * vazao_gpm) / (dh**2 - od_f**2)) * 0.3048 if 'vazao_gpm' in locals() else 0
+                v_anu_bbl = ((((dh**2) - (od_f**2)) / 1029.4) * 3.28084) * comp_m
+                vol_total_anular_bha += v_anu_bbl
+                
+            id_numeric = pd.to_numeric(id_f, errors='coerce')
+            if isinstance(id_numeric, (int, float)) and id_numeric > 0:
+                v_int = (((id_numeric**2) / 1029.4) * 3.28084) * comp_m
+                vol_total_interno_bha += v_int
+            
+            bha_final.append({
+                "Ordem": item["Ordem"], "Qtd": int(qtd),
+                "Componente": item["Componente"], "OD": od_f, "ID": id_f,
+                "C Total (m)": round(comp_m, 2), "Peso Total (klbs)": round(peso_k, 2), 
+                "Acum(klbs)": round(acum_klbs, 2),
+                "Vel (m/min)": round(v_anu, 1),
+                "V Int (bbl)": round(v_int, 2) if v_int > 0 else "-",
+                "V Anu (bbl)": round(v_anu_bbl, 2) if v_anu_bbl > 0 else "-"
+            })
+
+    resultados_bha = bha_final
+
+    st.write(f"✅ **2. Resumo Final Calculado da BHA (Com as suas edições)** - Comprimento Total: {comp_total_bha:.2f} m")
+    df_resultados = pd.DataFrame(resultados_bha)
+    
+    def colorir(val):
+        if isinstance(val, (int, float)):
+            if val < 30: return 'background-color: #ffcccc; color: black;'
+            elif val > 60 and val < 1000: return 'background-color: #ffe6cc; color: black;'
+            elif val >= 1000: return 'background-color: #cce5ff; color: black;'
+            return 'background-color: #ccffcc; color: black;'
+        return ''
+        
+    # Mostramos o resultado final já ordenado e multiplicado!
+    st.dataframe(df_resultados.style.map(colorir, subset=['Vel (m/min)']), use_container_width=True, hide_index=True)
+    bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
+    peso_disp = peso_total_bha * bf
+    st.info(f"⚖️ **WOB Disp (BHA Flutuada):** {peso_disp:.1f} klbs | **Peso Ar:** {peso_total_bha:.1f} klbs")
+else:
+    st.info("👆 Utilize a barra lateral para carregar (Excel) ou montar (Construtor Inteligente) a BHA.")
+
+# ==========================================
+# SEÇÃO DOS DRILL PIPES
+# ==========================================
 st.write("**2. Drill Pipes (DP)**")
 dp_specs = {
     "DP 5\" - 19.5 lb/ft (S135)": {"OD": 5.0, "ID": 4.276, "Peso": 19.5},
     "DP 5\" - 25.6 lb/ft (HWDP)": {"OD": 5.0, "ID": 3.000, "Peso": 25.6},
     "DP 4\" - 14.0 lb/ft (S135)": {"OD": 4.0, "ID": 3.340, "Peso": 14.0}
 }
-
 col_dp1, col_dp2 = st.columns(2)
 with col_dp1: dp_escolhido = st.selectbox("Selecione o Drill Pipe:", list(dp_specs.keys()), key="dp_select")
 with col_dp2:
-    # PERMITE CASAS DECIMAIS PARA FRAÇÃO DE JUNTA
-    qtd_dp = st.number_input("Quantidade (Juntas)", min_value=0.00, value=50.00, step=0.01, format="%.2f", key="dp_qtd")
-    comp_medio_dp = st.number_input("Comp. Médio (m/junta)", min_value=0.0, value=9.5, step=0.1, key="dp_comp")
+    qtd_dp = st.number_input("Qtd Juntas", min_value=0.0, value=50.0, step=0.01, format="%.2f")
+    comp_medio_dp = st.number_input("m/junta", min_value=0.0, value=9.5, step=0.1)
 
 comp_total_dp = qtd_dp * comp_medio_dp
-od_dp = dp_specs[dp_escolhido]["OD"]
-id_dp = dp_specs[dp_escolhido]["ID"]
-peso_linear_dp = dp_specs[dp_escolhido]["Peso"]
-
+od_dp, id_dp, peso_linear_dp = dp_specs[dp_escolhido]["OD"], dp_specs[dp_escolhido]["ID"], dp_specs[dp_escolhido]["Peso"]
 v_anular_dp_m, vol_int_dp, vol_anular_dp, peso_total_dp_klbs = 0, 0, 0, 0
 
 if comp_total_dp > 0:
@@ -607,63 +737,232 @@ if comp_total_dp > 0:
     vol_int_dp = (((id_dp**2) / 1029.4) * 3.28084) * comp_total_dp
     peso_total_dp_klbs = (comp_total_dp * 3.28084 * peso_linear_dp) / 1000
 
-    col_dpr1, col_dpr2, col_dpr3 = st.columns(3)
-    col_dpr1.metric("Metragem de DP", f"{comp_total_dp:.2f} m")
-    col_dpr2.metric("Vel. Anular no DP", f"{v_anular_dp_m:.1f} m/min")
-    col_dpr3.metric("Peso no Ar (DP)", f"{peso_total_dp_klbs:.1f} klbs")
+    col_dpr1, col_dpr2, col_dpr3, col_dpr4 = st.columns(4)
+    col_dpr1.metric("DP (m)", f"{comp_total_dp:.2f} m")
+    col_dpr2.metric("MD Poço", f"{comp_total_bha + comp_total_dp:.2f} m")
+    col_dpr3.metric("Vel. Anular DP", f"{v_anular_dp_m:.1f} m/min")
+    col_dpr4.metric("Peso Ar DP", f"{peso_total_dp_klbs:.1f} klbs")
 
 # ==========================================
-# RESUMO GLOBAL: PESO, VOLUMETRIA, TEMPOS E ECD
+# ANÁLISE AUTOMÁTICA E JAR PLACEMENT
 # ==========================================
 st.markdown("---")
-st.header("⚖️ Resumo Global e Dinâmica do Poço")
+st.header(t["head_auto"])
+col_bha1, col_bha2 = st.columns(2)
 
-# Somatórios
+with col_bha1:
+    st.write("**Tendência Geométrica**")
+    if len(resultados_bha) > 0:
+        distancia_acumulada = 0.0
+        estabilizadores_dist = []
+        for item in resultados_bha:
+            nome_comp = str(item.get('Componente', '')).upper()
+            comp_m = parse_weight(item.get('C Total (m)', item.get('C (m)', 0.0)))
+            if any(termo in nome_comp for termo in ["PDM", "MOTOR"]) and (estabilizacao == "Stabilized" or "CAMISA" in nome_comp):
+                estabilizadores_dist.append(distancia_acumulada + 1.2)
+            distancia_acumulada += comp_m
+            if any(termo in nome_comp for termo in ["STB", "ESTAB"]) and not any(termo in nome_comp for termo in ["PDM", "MOTOR"]):
+                estabilizadores_dist.append(distancia_acumulada)
+                
+        if not estabilizadores_dist: st.info("📉 **Pendulum Assembly (Drop)**")
+        else:
+            primeiro_estab = estabilizadores_dist[0]
+            if primeiro_estab <= 3.0: 
+                if len(estabilizadores_dist) == 1: st.success("📈 **Fulcrum Assembly (Build)**")
+                elif len(estabilizadores_dist) == 2:
+                    if (estabilizadores_dist[1] - estabilizadores_dist[0]) > 9.0: st.success("📈 **Fulcrum (Build):** 2º STB distante.")
+                    else: st.warning("⚖️ **BHA Steerable / Fulcrum Rígido**")
+                elif len(estabilizadores_dist) >= 3:
+                    if (estabilizadores_dist[1] - estabilizadores_dist[0]) <= 9.0: st.info("⚖️ **Packed Assembly (Hold)**")
+                    else: st.success("📈 **Fulcrum Modificado**")
+            else: st.info(f"📉 **Pendulum Assembly (Drop)** - Apoio a {primeiro_estab:.1f}m.")
+
+with col_bha2:
+    st.write("**Posicionamento do Drilling Jar**")
+    
+    wob_planejado = st.number_input("WOB Max Planejado (klbf)", 
+                                    step=5.0, 
+                                    key="wob_main", 
+                                    on_change=sync_from_main)
+    
+    if len(resultados_bha) > 0:
+        fator_flutuacao = 1 - (peso_lama_ppg / 65.5)
+        fator_inclinacao = math.cos(math.radians(inc1)) if 'inc1' in locals() and inc1 > 0 else 1.0
+        margem_seguranca = wob_planejado * 1.2
+        
+        posicao_jar_atual = next((item for item in resultados_bha if "JAR" in str(item.get('Componente', '')).upper()), None)
+        if posicao_jar_atual:
+            peso_efetivo = parse_weight(posicao_jar_atual.get('Acum(klbs)', '0')) * fator_flutuacao * fator_inclinacao
+            if peso_efetivo < margem_seguranca: st.error(f"🚨 **Alerta de Fadiga:** Peso {peso_efetivo:.1f} klbf < {margem_seguranca:.1f} klbf. Risco de Ponto Neutro.")
+            else: st.success(f"✅ **Jar Bem Posicionado:** {peso_efetivo:.1f} klbf operando tracionado.")
+        else:
+            item_recomendado = None
+            for item in resultados_bha:
+                peso_efetivo_acumulado = parse_weight(item.get('Acum(klbs)', '0')) * fator_flutuacao * fator_inclinacao
+                if peso_efetivo_acumulado >= margem_seguranca:
+                    item_recomendado = item.get('Componente', 'Desconhecido')
+                    break
+            if item_recomendado: st.success(f"💡 **Recomendação:** Posicione o Jar **acima** da ferramenta: **{item_recomendado}**.")
+            else: st.error("🚨 **Atenção:** Peso TOTAL da BHA insuficiente para WOB.")
+
+# ==========================================
+# HIDRÁULICA E ECD
+# ==========================================
+st.markdown("---")
+st.header(t["head_hyd"])
+col_h1, col_h2 = st.columns(2)
+with col_h1:
+    st.write("**Performance da Broca**")
+    bit_press_drop = (vazao_gpm**2 * peso_lama_ppg) / (10858 * (tfa**2)) if tfa > 0 else 0
+    jet_velocity_m = ((0.32086 * vazao_gpm) / tfa) * 0.3048 if tfa > 0 else 0
+    st.metric("ΔP Broca", f"{bit_press_drop:.0f} psi")
+    st.metric("Velocidade do Jato", f"{jet_velocity_m:.1f} m/s")
+
+with col_h2:
+    st.write("**API RP 13D e ECD MWD**")
+    ecd_mwd = st.number_input("ECD Real (MWD)", value=0.0, step=0.1)
+
+delta_p_anular_total = 0.0
+for item in resultados_bha:
+    od_f = item.get("OD", 0)
+    comp_m = item.get("C Total (m)", item.get("C (m)", 0))
+    vel_m_min = item.get("Vel (m/min)", 0)
+    if isinstance(od_f, (int, float)) and od_f > 0 and comp_m > 0 and (dh - od_f) > 0:
+        L_ft, v_ft_min = comp_m * 3.28084, vel_m_min * 3.28084
+        delta_p_anular_total += ((L_ft * pv * v_ft_min) / (60000 * (dh - od_f)**2)) + ((L_ft * yp) / (200 * (dh - od_f)))
+
+if comp_total_dp > 0 and (dh - od_dp) > 0:
+    L_dp_ft, v_dp_ft_min = comp_total_dp * 3.28084, v_anular_dp_m * 3.28084
+    delta_p_anular_total += ((L_dp_ft * pv * v_dp_ft_min) / (60000 * (dh - od_dp)**2)) + ((L_dp_ft * yp) / (200 * (dh - od_dp)))
+
+st.write("---")
+col_ecd1, col_ecd2, col_ecd3 = st.columns(3)
+col_ecd1.metric("📉 Fricção Anular Total", f"{delta_p_anular_total:.0f} psi")
+tvd_ft = tvd_m * 3.28084
+ecd_calc = peso_lama_ppg + (delta_p_anular_total / (0.052 * tvd_ft)) if tvd_ft > 0 else peso_lama_ppg
+col_ecd2.metric("ECD Teórico", f"{ecd_calc:.2f} ppg", delta=f"+ {(ecd_calc - peso_lama_ppg):.2f} ppg", delta_color="inverse")
+
+if ecd_mwd > 0:
+    diff_ecd = ecd_mwd - ecd_calc
+    col_ecd3.metric("ECD Real", f"{ecd_mwd:.2f} ppg", delta=f"{diff_ecd:.2f} vs Teórico", delta_color="off")
+    if diff_ecd > 0.3: st.error("⚠️ **Alerta de Pack-off:** ECD Real muito ACIMA do Teórico.")
+    elif diff_ecd < -0.3: st.warning("⚠️ **Atenção:** ECD Real abaixo do esperado.")
+
+# ==========================================
+# RESUMO GLOBAL: PESO, VOLUMETRIA, TEMPOS
+# ==========================================
+st.markdown("---")
+st.header(t["head_glob"])
 profundidade_md = comp_total_bha + comp_total_dp
 vol_int_poco = vol_total_interno_bha + vol_int_dp
 vol_anu_poco = vol_total_anular_bha + vol_anular_dp
 vol_total_sistema = vol_int_poco + vol_anu_poco
 peso_total_coluna = peso_total_bha + peso_total_dp_klbs
 
-# Flutuação
-bf = 1.0 - (peso_lama_ppg / 65.5)
+# Garante que o Fator de Flutuação (bf) seja calculado globalmente
+bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
 peso_flutuado_coluna = peso_total_coluna * bf
 
-st.write("**Profundidade e Peso da Coluna**")
 col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-col_g1.metric("Profundidade (MD)", f"{profundidade_md:.1f} m", help="Soma total do comprimento BHA + DP.")
-col_g2.metric("Hook Load (Flutuado)", f"{peso_flutuado_coluna:.1f} klbs")
-col_g3.metric("Volume Anular", f"{vol_anu_poco:.1f} bbl")
-col_g4.metric("Volume Total (Ciclo)", f"{vol_total_sistema:.1f} bbl")
+col_g1.metric("MD", f"{profundidade_md:.1f} m")
+col_g2.metric("Hook Load", f"{peso_flutuado_coluna:.1f} klbs")
+col_g3.metric("Vol. Anular", f"{vol_anu_poco:.1f} bbl")
+col_g4.metric("Vol. Ciclo", f"{vol_total_sistema:.1f} bbl")
 
-# --- NOVO: SEÇÃO DE TELEMETRIA E ECD ---
-st.write("**Telemetria MWD e Leitura de ECD**")
-telemetria = st.radio("Selecione o tipo de transmissão MWD:", ["EM (Eletromagnético)", "PP (Mud Pulse)"], horizontal=True)
+st.write("**Tempos de Circulação**")
+vazao_bbl_min = vazao_gpm / 42.0 if vazao_gpm > 0 else 1.0
+col_t1, col_t2, col_t3 = st.columns(3)
+col_t1.metric("⏱️ Surface to Bit", f"{vol_int_poco / vazao_bbl_min:.0f} min")
+col_t2.metric("⏱️ Bottoms Up", f"{vol_anu_poco / vazao_bbl_min:.0f} min")
+col_t3.metric("⏱️ Ciclo Completo", f"{vol_total_sistema / vazao_bbl_min:.0f} min")
 
-if "EM" in telemetria:
-    st.info("📡 **Telemetria EM:** ECD calculado com base na leitura direta do PWD ou estimativa calibrada.")
-else:
-    st.warning("📳 **Telemetria PP:** Valor de ECD **ESTIMADO** matematicamente. Como não há PWD acoplado, o cálculo baseia-se na perda de carga anular teórica e pressão (SPP).")
+# ==========================================
+# RELATÓRIO PDF
+# ==========================================
+st.markdown("---")
+st.header(t["head_pdf"])
+nome_poco = st.text_input("Poço / Sonda", value="Exploratório")
+nome_operador = st.text_input("Operador Direcional", value="Engenheiro Chefe")
 
-# O campo e o cálculo agora ficam fora do "if", aparecendo para ambos os casos!
-delta_p_anular = st.number_input("Perda de Carga Anular Estimada (psi)", value=150.0, step=10.0, help="Pressão gasta para elevar o fluido pelo anular (estimada ou via PWD).")
+if st.button(t["btn_pdf"]):
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_fill_color(200, 220, 255)
+        
+        try: pdf.image("logo_intrepid.png", x=10, y=8, w=40)
+        except: pass
+        
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 10, 'Relatorio Diario de Engenharia', ln=True, align='C')
+        pdf.set_font('Arial', '', 10)
+        dt_atual = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        pdf.cell(0, 10, f'Poco: {nome_poco} | Operador: {nome_operador} | Data: {dt_atual}', ln=True, align='C')
+        pdf.ln(10)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, '1. Parametros Operacionais e Motor', ln=True, fill=True)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(95, 8, f'Modelo: {modelo} - {od}" - Lobos: {lobulos}', border=1)
+        pdf.cell(95, 8, f'Bent Housing: {bent} graus ({estabilizacao})', border=1, ln=True)
+        pdf.cell(63, 8, f'RPM Motor: {rpm_motor:.0f}', border=1)
+        pdf.cell(63, 8, f'RPM Mesa: {rpm_superficie:.0f}', border=1)
+        pdf.cell(64, 8, f'Total RPM: {(rpm_motor + rpm_superficie):.0f}', border=1, ln=True)
+        pdf.cell(63, 8, f'Torque: {torque_lbft:.0f} lb-ft', border=1)
+        pdf.cell(63, 8, f'Delta P Motor: {motor_total_press_drop:.0f} psi', border=1)
+        pdf.cell(64, 8, f'Potencia: {hp_mec:.1f} HP', border=1, ln=True)
+        pdf.ln(5)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, '2. Hidraulica e ECD (API RP 13D)', ln=True, fill=True)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(63, 8, f'PV: {pv:.0f} cP | YP: {yp:.0f} lb/100ft2', border=1)
+        pdf.cell(63, 8, f'Delta P Anular: {delta_p_anular_total:.0f} psi', border=1)
+        pdf.cell(64, 8, f'ECD Calc: {ecd_calc:.2f} ppg', border=1, ln=True)
+        pdf.ln(5)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, '3. Projecao Direcional e Estrategia', ln=True, fill=True)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(47, 8, f'MD1: {md1}m', border=1)
+        pdf.cell(47, 8, f'MD2: {md2}m', border=1)
+        pdf.cell(48, 8, f'Toolface: {tf_deg:.0f} graus', border=1)
+        pdf.cell(48, 8, f'DLS: {dls:.2f} /30m', border=1, ln=True)
+        pdf.cell(0, 8, f'Slide Recomendado: {slide_meters:.1f} m  |  Rotary: {rotary_meters:.1f} m', border=1, ln=True)
+        pdf.ln(5)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, '4. Composicao de Fundo (BHA)', ln=True, fill=True)
+        pdf.set_font('Arial', 'B', 10)
+        col_w = [10, 70, 20, 20, 35, 35]
+        
+        # Cabeçalho da tabela corrigido com os títulos fixos
+        pdf.cell(col_w[0], 8, 'N', border=1)
+        pdf.cell(col_w[1], 8, 'Componente', border=1)
+        pdf.cell(col_w[2], 8, 'OD (in)', border=1)
+        pdf.cell(col_w[3], 8, 'ID (in)', border=1)
+        pdf.cell(col_w[4], 8, 'C Total (m)', border=1)
+        pdf.cell(col_w[5], 8, 'Peso T.(klbs)', border=1, ln=True)
+        
+        pdf.set_font('Arial', '', 9)
+        for i, item in enumerate(resultados_bha):
+            # Obtém a Ordem correta definida na Tabela
+            pdf.cell(col_w[0], 8, str(item.get('Ordem', i+1)), border=1)
+            
+            f_nome = str(item.get('Componente', '')).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(col_w[1], 8, f_nome[:38], border=1)
+            pdf.cell(col_w[2], 8, str(item.get('OD', '-')), border=1)
+            pdf.cell(col_w[3], 8, str(item.get('ID', '-')), border=1)
+            
+            # Leitura correta das novas chaves (Metragem e Peso já calculados pela Qtd)
+            c_val = item.get('C Total (m)', item.get('C Unitário (m)', item.get('C (m)', 0)))
+            p_val = item.get('Peso Total (klbs)', item.get('Peso Unit (klbs)', item.get('Comp(klbs)', '-')))
+            
+            pdf.cell(col_w[4], 8, f"{float(c_val):.2f}", border=1)
+            pdf.cell(col_w[5], 8, str(p_val), border=1, ln=True)
 
-tvd_ft = tvd_m * 3.28084
-if tvd_ft > 0:
-    ecd_ppg = peso_lama_ppg + (delta_p_anular / (0.052 * tvd_ft))
-else:
-    ecd_ppg = peso_lama_ppg
-    
-st.metric("Equivalent Circulating Density (ECD)", f"{ecd_ppg:.2f} ppg", delta=f"+ {(ecd_ppg - peso_lama_ppg):.2f} ppg", delta_color="inverse")
-
-# --- TEMPOS DE CIRCULAÇÃO ---
-st.write("**Tempos de Circulação e Bomba**")
-bbl_stroke = st.number_input("Capacidade da Bomba (bbl/stk)", value=0.117, step=0.001, format="%.3f")
-
-if vazao_gpm > 0 and bbl_stroke > 0:
-    vazao_bbl_min = vazao_gpm / 42.0 
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Surface to Bit (Descer Pílula)", f"{(vol_int_poco / vazao_bbl_min):.0f} min", f"{(vol_int_poco / bbl_stroke):.0f} stks", delta_color="off")
-    c2.metric("Bottom Up (Retorno de Fundo)", f"{(vol_anu_poco / vazao_bbl_min):.0f} min", f"{(vol_anu_poco / bbl_stroke):.0f} stks", delta_color="off")
-    c3.metric("Ciclo Completo", f"{(vol_total_sistema / vazao_bbl_min):.0f} min", f"{(vol_total_sistema / bbl_stroke):.0f} stks", delta_color="off")
+        b64 = base64.b64encode(pdf.output(dest='S').encode('latin-1')).decode()
+        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="Relatorio_{dt_atual.replace("/","-").replace(":","")}.pdf" class="button">📥 Baixar Relatório PDF</a>', unsafe_allow_html=True)
+    except Exception as e: 
+        st.error(f"Erro no PDF: {e}")
