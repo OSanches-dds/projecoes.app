@@ -449,28 +449,26 @@ if pm > 0:
             st.success(f"✅ Slide **{slide_meters:.1f} m** @ **{tf_deg:.0f}°** | Rotary **{rotary_meters:.1f} m**.")
 
 # ==========================================
-# MÓDULO DE ENGENHARIA E HIDRÁULICA DO MOTOR
+# PARÂMETROS DE FLUIDO E POÇO
 # ==========================================
 st.markdown("---")
-st.header(t["head_eng"])
+st.header("🌊 Parâmetros de Fluido e Poço")
+col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+peso_lama_ppg = col_f1.number_input("Mud Weight (ppg)", value=9.0, step=0.1)
+vazao_gpm = col_f2.number_input("Flow Rate (GPM)", value=450.0, step=10.0)
+pv = col_f3.number_input("PV (cP)", value=15.0, step=1.0)
+yp = col_f4.number_input("YP (lb/100ft²)", value=25.0, step=1.0)
 
-col8, col9 = st.columns(2)
-with col8:
-    st.write(t["fluid_param"])
-    peso_lama_ppg = st.number_input("Mud Weight (ppg)", value=9.0, step=0.1)
-    vazao_gpm = st.number_input("Flow Rate (GPM)", value=450.0, step=10.0)
+# ==========================================
+# MÓDULO DE ENGENHARIA DO MOTOR (PDM)
+# ==========================================
+st.markdown("---")
+st.header("⚙️ Parâmetros do Motor (PDM)")
 
-with col9:
-    st.write(t["rheology"])
-    pv = st.number_input("PV (cP)", value=15.0, step=1.0)
-    yp = st.number_input("YP (lb/100ft²)", value=25.0, step=1.0)
-    rpm_superficie = st.number_input("Surface RPM", value=40.0, step=5.0)
-
-st.write("---")
 col10, col11 = st.columns(2)
 with col10:
-    st.write(t["downhole_param"])
-    tvd_m = st.number_input("TVD (m)", value=1000.0, step=10.0)
+    st.write("**Parâmetros Operacionais de Fundo**")
+    rpm_superficie = st.number_input("Surface RPM", value=40.0, step=5.0)
     torque_lbft = st.number_input("Torque (lb-ft)", value=2500.0, step=100.0)
     pressao_dif = st.number_input("Diff Pressure (psi)", value=300.0, step=10.0)
     
@@ -512,7 +510,7 @@ peso_total_bha = 0.0
 comp_total_bha = 0.0 
 resultados_bha = []
 
-if modo_bha == "Excel (Tally)" and arquivo_bha is not None:
+if modo_bha == t["opt_excel"] and arquivo_bha is not None:
     try:
         df_bha = pd.read_excel(arquivo_bha, header=None, skiprows=11, nrows=8)
         for index, row in df_bha.iterrows():
@@ -540,7 +538,7 @@ if modo_bha == "Excel (Tally)" and arquivo_bha is not None:
             })
     except Exception as e: st.error(f"Erro Excel: {e}")
 
-elif modo_bha == "Construtor Inteligente":
+elif modo_bha == t["opt_smart"]:
     stb_fg, stb_ug = dh_manual - 0.125, dh_manual - 0.25
     
     # --- DIMENSIONAMENTO SEGUNDO PETROGUIA (SEÇÃO D) ---
@@ -704,11 +702,9 @@ if len(resultados_bha) > 0:
             return 'background-color: #ccffcc; color: black;'
         return ''
         
-    # Mostramos o resultado final já ordenado e multiplicado!
+   # Mostramos o resultado final já ordenado e multiplicado!
     st.dataframe(df_resultados.style.map(colorir, subset=['Vel (m/min)']), use_container_width=True, hide_index=True)
-    bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
-    peso_disp = peso_total_bha * bf
-    st.info(f"⚖️ **WOB Disp (BHA Flutuada):** {peso_disp:.1f} klbs | **Peso Ar:** {peso_total_bha:.1f} klbs")
+
 else:
     st.info("👆 Utilize a barra lateral para carregar (Excel) ou montar (Construtor Inteligente) a BHA.")
 
@@ -737,11 +733,17 @@ if comp_total_dp > 0:
     vol_int_dp = (((id_dp**2) / 1029.4) * 3.28084) * comp_total_dp
     peso_total_dp_klbs = (comp_total_dp * 3.28084 * peso_linear_dp) / 1000
 
-    col_dpr1, col_dpr2, col_dpr3, col_dpr4 = st.columns(4)
+    col_dpr1, col_dpr2, col_dpr3, col_dpr4, col_dpr5 = st.columns(5)
     col_dpr1.metric("DP (m)", f"{comp_total_dp:.2f} m")
     col_dpr2.metric("MD Poço", f"{comp_total_bha + comp_total_dp:.2f} m")
     col_dpr3.metric("Vel. Anular DP", f"{v_anular_dp_m:.1f} m/min")
-    col_dpr4.metric("Peso Ar DP", f"{peso_total_dp_klbs:.1f} klbs")
+    
+    peso_total_coluna = peso_total_bha + peso_total_dp_klbs
+    bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
+    peso_flutuado_coluna = peso_total_coluna * bf
+    
+    col_dpr4.metric("Peso Ar Total", f"{peso_total_coluna:.1f} klbs")
+    col_dpr5.metric("Hook Load", f"{peso_flutuado_coluna:.1f} klbs")
 
 # ==========================================
 # ANÁLISE AUTOMÁTICA E JAR PLACEMENT
@@ -806,75 +808,240 @@ with col_bha2:
             else: st.error("🚨 **Atenção:** Peso TOTAL da BHA insuficiente para WOB.")
 
 # ==========================================
-# HIDRÁULICA E ECD
+# DASHBOARD DE HIDRÁULICA E LIMPEZA DE ANULAR
 # ==========================================
 st.markdown("---")
-st.header(t["head_hyd"])
-col_h1, col_h2 = st.columns(2)
-with col_h1:
-    st.write("**Performance da Broca**")
-    bit_press_drop = (vazao_gpm**2 * peso_lama_ppg) / (10858 * (tfa**2)) if tfa > 0 else 0
-    jet_velocity_m = ((0.32086 * vazao_gpm) / tfa) * 0.3048 if tfa > 0 else 0
-    st.metric("ΔP Broca", f"{bit_press_drop:.0f} psi")
-    st.metric("Velocidade do Jato", f"{jet_velocity_m:.1f} m/s")
+st.header("🌊 Dashboard de Hidráulica e Limpeza de Poço")
 
-with col_h2:
-    st.write("**API RP 13D e ECD MWD**")
-    ecd_mwd = st.number_input("ECD Real (MWD)", value=0.0, step=0.1)
-
-delta_p_anular_total = 0.0
-for item in resultados_bha:
-    od_f = item.get("OD", 0)
-    comp_m = item.get("C Total (m)", item.get("C (m)", 0))
-    vel_m_min = item.get("Vel (m/min)", 0)
-    if isinstance(od_f, (int, float)) and od_f > 0 and comp_m > 0 and (dh - od_f) > 0:
-        L_ft, v_ft_min = comp_m * 3.28084, vel_m_min * 3.28084
-        delta_p_anular_total += ((L_ft * pv * v_ft_min) / (60000 * (dh - od_f)**2)) + ((L_ft * yp) / (200 * (dh - od_f)))
-
-if comp_total_dp > 0 and (dh - od_dp) > 0:
-    L_dp_ft, v_dp_ft_min = comp_total_dp * 3.28084, v_anular_dp_m * 3.28084
-    delta_p_anular_total += ((L_dp_ft * pv * v_dp_ft_min) / (60000 * (dh - od_dp)**2)) + ((L_dp_ft * yp) / (200 * (dh - od_dp)))
+col_h_in1, col_h_in2, col_h_in3 = st.columns(3)
+tvd_m = col_h_in1.number_input("TVD (m) - Usado no ECD", value=1000.0, step=10.0)
+pressao_bomba = col_h_in2.number_input("Pressão da Bomba (psi)", value=3000.0, step=100.0)
+ecd_mwd = col_h_in3.number_input("ECD Real MWD (ppg)", value=0.0, step=0.1)
 
 st.write("---")
-col_ecd1, col_ecd2, col_ecd3 = st.columns(3)
-col_ecd1.metric("📉 Fricção Anular Total", f"{delta_p_anular_total:.0f} psi")
-tvd_ft = tvd_m * 3.28084
-ecd_calc = peso_lama_ppg + (delta_p_anular_total / (0.052 * tvd_ft)) if tvd_ft > 0 else peso_lama_ppg
-col_ecd2.metric("ECD Teórico", f"{ecd_calc:.2f} ppg", delta=f"+ {(ecd_calc - peso_lama_ppg):.2f} ppg", delta_color="inverse")
+col_h1, col_h2 = st.columns(2)
 
-if ecd_mwd > 0:
-    diff_ecd = ecd_mwd - ecd_calc
-    col_ecd3.metric("ECD Real", f"{ecd_mwd:.2f} ppg", delta=f"{diff_ecd:.2f} vs Teórico", delta_color="off")
-    if diff_ecd > 0.3: st.error("⚠️ **Alerta de Pack-off:** ECD Real muito ACIMA do Teórico.")
-    elif diff_ecd < -0.3: st.warning("⚠️ **Atenção:** ECD Real abaixo do esperado.")
+with col_h1:
+    st.write("**Performance da Broca (Bit Hydraulics)**")
+    
+    bit_press_drop = (vazao_gpm**2 * peso_lama_ppg) / (10858 * (tfa**2)) if tfa > 0 else 0
+    jet_velocity_fps = (0.32086 * vazao_gpm) / tfa if tfa > 0 else 0
+    jet_velocity_m = jet_velocity_fps * 0.3048
+    
+    hhp_bit = (bit_press_drop * vazao_gpm) / 1714
+    area_poco = (math.pi * (dh**2)) / 4
+    hsi = hhp_bit / area_poco if area_poco > 0 else 0
+    
+    jif = (0.000516 * peso_lama_ppg * (vazao_gpm**2)) / tfa if tfa > 0 else 0
+    perc_bit_drop = (bit_press_drop / pressao_bomba) * 100 if pressao_bomba > 0 else 0
 
-# ==========================================
-# RESUMO GLOBAL: PESO, VOLUMETRIA, TEMPOS
-# ==========================================
-st.markdown("---")
-st.header(t["head_glob"])
-profundidade_md = comp_total_bha + comp_total_dp
+    status_hsi = "🔴 Baixo" if hsi < 2.0 else "🟢 Ideal" if hsi <= 4.0 else "🟡 Alto"
+    status_jif = "🔴 Fraca" if jif < 500 else "🟢 Excelente"
+    status_vel = "🔴 Baixa (< 75)" if jet_velocity_m < 75 else "🟢 Ideal" if jet_velocity_m <= 120 else "🟡 Erosiva (> 120)"
+    status_perc = "🟢 Ideal" if 50 <= perc_bit_drop <= 65 else "🟡 Fora"
+
+    c_h1a, c_h1b = st.columns(2)
+    c_h1a.metric("ΔP Broca (Bit Drop)", f"{bit_press_drop:.0f} psi", f"{perc_bit_drop:.1f}% da Bomba ({status_perc})", delta_color="off")
+    c_h1b.metric("Velocidade do Jato", f"{jet_velocity_m:.1f} m/s", status_vel, delta_color="off")
+    
+    c_h1c, c_h1d = st.columns(2)
+    c_h1c.metric("HSI", f"{hsi:.1f} hp/in²", status_hsi, delta_color="off")
+    c_h1d.metric("Jet Impact Force", f"{jif:.0f} lbf", status_jif, delta_color="off")
+
+with col_h2:
+    st.write("**Fricção Dinâmica e ECD (API RP 13D)**")
+    
+    delta_p_anular_total = 0.0
+    for item in resultados_bha:
+        od_f = item.get("OD", 0)
+        comp_m = item.get("C Total (m)", item.get("C (m)", 0))
+        vel_m_min = item.get("Vel (m/min)", 0)
+        if isinstance(od_f, (int, float)) and od_f > 0 and comp_m > 0 and (dh - od_f) > 0:
+            L_ft, v_ft_min = comp_m * 3.28084, vel_m_min * 3.28084
+            delta_p_anular_total += ((L_ft * pv * v_ft_min) / (60000 * (dh - od_f)**2)) + ((L_ft * yp) / (200 * (dh - od_f)))
+
+    if comp_total_dp > 0 and (dh - od_dp) > 0:
+        L_dp_ft, v_dp_ft_min = comp_total_dp * 3.28084, v_anular_dp_m * 3.28084
+        delta_p_anular_total += ((L_dp_ft * pv * v_dp_ft_min) / (60000 * (dh - od_dp)**2)) + ((L_dp_ft * yp) / (200 * (dh - od_dp)))
+
+    tvd_ft = tvd_m * 3.28084
+    ecd_calc = peso_lama_ppg + (delta_p_anular_total / (0.052 * tvd_ft)) if tvd_ft > 0 else peso_lama_ppg
+
+    c_ecd1, c_ecd2 = st.columns(2)
+    c_ecd1.metric("📉 Fricção Anular", f"{delta_p_anular_total:.0f} psi")
+    c_ecd2.metric("ECD Teórico (Fundo)", f"{ecd_calc:.2f} ppg", delta=f"+ {(ecd_calc - peso_lama_ppg):.2f} ppg", delta_color="inverse")
+
+    if ecd_mwd > 0:
+        diff_ecd = ecd_mwd - ecd_calc
+        st.metric("ECD Real", f"{ecd_mwd:.2f} ppg", delta=f"{diff_ecd:.2f} vs Teórico", delta_color="off")
+        if diff_ecd > 0.3: st.error("⚠️ **Alerta de Pack-off:** ECD Real muito ACIMA do Teórico.")
+        elif diff_ecd < -0.3: st.warning("⚠️ **Atenção:** ECD Real abaixo do esperado.")
+
+st.write("---")
+st.write("**Limpeza de Anular (Hole Cleaning Model)**")
+
+# Seletor Inteligente de SG e Vs
+col_lit1, col_lit2 = st.columns(2)
+litologia = col_lit1.selectbox("Formação / Litologia (Auto SG)", [
+    "Folhelho (Shale) - SG 2.60",
+    "Arenito (Sandstone) - SG 2.65",
+    "Calcário (Limestone) - SG 2.70",
+    "Dolomita (Dolomite) - SG 2.85",
+    "Sal (Halite) - SG 2.16",
+    "Inserir Manualmente"
+])
+
+tamanho_cascalho = col_lit2.selectbox("Tamanho do Cascalho (Auto Vs)", [
+    "Fino (PDC Alta RPM) - Vs ~35 ft/min",
+    "Médio (PDC Normal) - Vs ~49 ft/min",
+    "Grosso (Tricônica/Cavings) - Vs ~65 ft/min",
+    "Inserir Manualmente"
+])
+
+col_hc_in1, col_hc_in2, col_hc_in3 = st.columns(3)
+rop_mh = col_hc_in1.number_input("Taxa de Penetração (ROP) [m/h]", value=25.0, step=1.0)
+
+# Lógica de preenchimento automático
+if "Manualmente" in tamanho_cascalho:
+    vs_ftmin = col_hc_in2.number_input("Vel. Sedimentação (Vs) [ft/min]", value=49.0, step=1.0)
+else:
+    vs_val = float(tamanho_cascalho.split("~")[1].split(" ")[0])
+    vs_ftmin = col_hc_in2.number_input("Vel. Sedimentação (Vs) [ft/min]", value=vs_val, disabled=True)
+    
+if "Manualmente" in litologia:
+    sg_cuttings = col_hc_in3.number_input("Densidade Específica (SG)", value=2.60, step=0.01)
+else:
+    sg_val = float(litologia.split("SG ")[1])
+    sg_cuttings = col_hc_in3.number_input("Densidade Específica (SG)", value=sg_val, disabled=True)
+
+# Validação do DP para a velocidade ascensional principal (Va)
+if 'od_dp' in locals() and (dh**2 - od_dp**2) > 0:
+    va_ftmin = (24.51 * vazao_gpm) / (dh**2 - od_dp**2)
+else:
+    va_ftmin = 0.0
+
+if va_ftmin > 0:
+    vt_ftmin = va_ftmin - vs_ftmin
+    et_perc = (vt_ftmin / va_ftmin) * 100 if va_ftmin > 0 else 0
+    
+    rop_fthr = rop_mh * 3.28084
+    ca_perc = (rop_fthr * (dh**2)) / (14.71 * et_perc * vazao_gpm) if (et_perc > 0 and vazao_gpm > 0) else 0
+    
+    de_ppg = (sg_cuttings * 8.34 * (ca_perc / 100)) + (peso_lama_ppg * (1 - (ca_perc / 100)))
+
+    c_hc1, c_hc2, c_hc3, c_hc4, c_hc5 = st.columns(5)
+    c_hc1.metric("Vel. Ascensional (Va)", f"{va_ftmin:.1f} ft/min")
+    c_hc2.metric("Vel. Transporte (Vt)", f"{vt_ftmin:.1f} ft/min")
+    
+    status_et = "🟢 Boa" if et_perc >= 50 else "🔴 Baixa"
+    c_hc3.metric("Eficiência (Et)", f"{et_perc:.1f} %", status_et, delta_color="off")
+    
+    status_ca = "🟢 Ideal" if ca_perc <= 5 else "🔴 Alta (Risco)"
+    c_hc4.metric("Conc. Cascalhos (Ca)", f"{ca_perc:.2f} %", status_ca, delta_color="off")
+    
+    c_hc5.metric("Densidade Efetiva (De)", f"{de_ppg:.2f} ppg", f"+ {(de_ppg - peso_lama_ppg):.2f} ppg", delta_color="inverse")
+else:
+    st.warning("⚠️ Velocidade Ascensional não calculada. Verifique os diâmetros de poço e DP.")
+
+st.write("---")
+st.write("**Volumetria e Tempos de Circulação**")
+
 vol_int_poco = vol_total_interno_bha + vol_int_dp
 vol_anu_poco = vol_total_anular_bha + vol_anular_dp
 vol_total_sistema = vol_int_poco + vol_anu_poco
-peso_total_coluna = peso_total_bha + peso_total_dp_klbs
-
-# Garante que o Fator de Flutuação (bf) seja calculado globalmente
-bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
-peso_flutuado_coluna = peso_total_coluna * bf
-
-col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-col_g1.metric("MD", f"{profundidade_md:.1f} m")
-col_g2.metric("Hook Load", f"{peso_flutuado_coluna:.1f} klbs")
-col_g3.metric("Vol. Anular", f"{vol_anu_poco:.1f} bbl")
-col_g4.metric("Vol. Ciclo", f"{vol_total_sistema:.1f} bbl")
-
-st.write("**Tempos de Circulação**")
 vazao_bbl_min = vazao_gpm / 42.0 if vazao_gpm > 0 else 1.0
-col_t1, col_t2, col_t3 = st.columns(3)
-col_t1.metric("⏱️ Surface to Bit", f"{vol_int_poco / vazao_bbl_min:.0f} min")
-col_t2.metric("⏱️ Bottoms Up", f"{vol_anu_poco / vazao_bbl_min:.0f} min")
-col_t3.metric("⏱️ Ciclo Completo", f"{vol_total_sistema / vazao_bbl_min:.0f} min")
+
+col_v1, col_v2, col_v3, col_v4, col_v5 = st.columns(5)
+col_v1.metric("Vol. Interno", f"{vol_int_poco:.1f} bbl")
+col_v2.metric("Vol. Anular", f"{vol_anu_poco:.1f} bbl")
+col_v3.metric("⏱️ Surface to Bit", f"{vol_int_poco / vazao_bbl_min:.0f} min")
+col_v4.metric("⏱️ Bottoms Up", f"{vol_anu_poco / vazao_bbl_min:.0f} min")
+col_v5.metric("⏱️ Ciclo Completo", f"{vol_total_sistema / vazao_bbl_min:.0f} min")
+
+# ==========================================
+# ANÁLISE DE ARRASTO E TORQUE (TORQUE & DRAG - PETROGUIA UNIFICADO)
+# ==========================================
+st.markdown("---")
+st.header("⚖️ Análise de Arrasto e Torque (Modelo Petroguia Avançado)")
+
+st.write("**Parâmetros Direcionais e Fator de Fricção**")
+
+# Seletor inteligente no lugar da digitação manual
+tipo_friccao = st.selectbox("Cenário de Fricção (Fluido / Condição do Poço)", [
+    "Lama Sintética/Óleo (SBM/OBM) em Poço Aberto - f = 0.20",
+    "Lama Sintética/Óleo (SBM/OBM) em Poço Revestido - f = 0.15",
+    "Lama Base Água (WBM) em Poço Aberto - f = 0.30",
+    "Lama Base Água (WBM) em Poço Revestido - f = 0.25",
+    "Lubrificantes de Alta Performance - f = 0.12",
+    "Inserir Manualmente (Back-calculation)"
+])
+
+col_td1, col_td2, col_td3, col_td4 = st.columns(4)
+
+# Lógica de preenchimento automático do f
+if "Inserir Manualmente" in tipo_friccao:
+    ff_poco = col_td1.number_input("Coef. de Atrito (f)", value=0.25, step=0.01)
+else:
+    # Extrai automaticamente o valor do texto selecionado
+    ff_val = float(tipo_friccao.split("f = ")[1])
+    ff_poco = col_td1.number_input("Coef. de Atrito (f)", value=ff_val, disabled=True)
+
+inc_media = col_td2.number_input("Inclinação Média (θ°)", value=inc1 if 'inc1' in locals() else 0.0, step=1.0)
+delta_inc = col_td3.number_input("Variação Inclinação (Δθ°)", value=0.0, step=1.0)
+delta_azi = col_td4.number_input("Variação Azimute (Δφ°)", value=0.0, step=1.0)
+
+st.write("**Parâmetros da Coluna e Limites Operacionais**")
+col_td5, col_td6, col_td7 = st.columns(3)
+od_tubo = od_dp if 'od_dp' in locals() else 5.0
+od_tj = col_td5.number_input("OD do Tool Joint (in)", value=od_tubo + 1.5, step=0.125)
+overpull_margin = col_td6.number_input("Margem de Overpull (klbs)", value=50.0, step=10.0)
+
+# Raio efetivo da tubulação (Modelo Petroguia)
+r_in = (od_tubo + (2/3) * (od_tj - od_tubo)) / 2
+r_ft = r_in / 12.0
+col_td7.metric("Raio Efetivo (R)", f"{r_in:.2f} in")
+
+if 'peso_flutuado_coluna' in locals() and peso_flutuado_coluna > 0:
+    inc_rad = math.radians(inc_media)
+    d_inc_rad = math.radians(delta_inc)
+    d_azi_rad = math.radians(delta_azi)
+    
+    # Carga axial baseada no peso flutuado
+    W_total = peso_flutuado_coluna
+    T_axial = W_total * math.cos(inc_rad)
+    
+    # Força Normal (N) com Efeito Cabrestante (Capstan Effect)
+    termo_azimute = T_axial * d_azi_rad * math.sin(inc_rad)
+    termo_inclinacao = T_axial * d_inc_rad + W_total * math.sin(inc_rad)
+    N_normal = math.sqrt(termo_azimute**2 + termo_inclinacao**2)
+    
+    # Cargas Dinâmicas e Torque
+    arrasto_axial = ff_poco * N_normal
+    torque_friccao_lbft = (ff_poco * (N_normal * 1000) * r_ft)
+    
+    rot_w = T_axial
+    puw = T_axial + arrasto_axial
+    sow = T_axial - arrasto_axial
+    max_pull = puw + overpull_margin
+    
+    st.write("**Previsão de Cargas no Gancho (Hook Load) e Torque Friccional**")
+    c_td_a, c_td_b, c_td_c, c_td_d, c_td_e = st.columns(5)
+    c_td_a.metric("Rotary Wt", f"{rot_w:.1f} klbs")
+    c_td_b.metric("Pick-Up Wt", f"{puw:.1f} klbs", f"+{arrasto_axial:.1f}k Drag", delta_color="inverse")
+    c_td_c.metric("Slack-Off Wt", f"{sow:.1f} klbs", f"-{arrasto_axial:.1f}k Drag", delta_color="normal")
+    c_td_d.metric("Max Pull", f"{max_pull:.1f} klbs", f"Overpull {overpull_margin:.0f}k", delta_color="off")
+    c_td_e.metric("Torque (M)", f"{torque_friccao_lbft:.0f} lb-ft")
+    
+    st.write("**Análise de Risco Operacional e Transferência de WOB**")
+    wob_alvo = st.session_state.wob_main
+    peso_disponivel = sow - (wob_alvo * 1.2)
+    
+    if sow < wob_alvo:
+        st.error(f"🚨 **Risco Crítico de Buckling:** Slack-Off ({sow:.1f} klbs) menor que WOB Planejado ({wob_alvo:.1f} klbs). Sem peso na broca no modo Slide.")
+    elif peso_disponivel < 0:
+        st.warning(f"⚠️ **Atenção (Sliding):** Slack-off marginal. Risco de pendurar a coluna ao tentar transferir {wob_alvo:.1f} klbs de peso.")
+    else:
+        st.success(f"✅ **Transferência Segura:** Slack-Off ({sow:.1f} klbs) permite deslizar e transferir {wob_alvo:.1f} klbs na broca com segurança.")
 
 # ==========================================
 # RELATÓRIO PDF
@@ -915,15 +1082,50 @@ if st.button(t["btn_pdf"]):
         pdf.ln(5)
         
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, '2. Hidraulica e ECD (API RP 13D)', ln=True, fill=True)
+        pdf.cell(0, 10, '2. Hidraulica, Performance da Broca e ECD', ln=True, fill=True)
         pdf.set_font('Arial', '', 10)
+        
+        # Primeira Linha - Reologia e ECD
         pdf.cell(63, 8, f'PV: {pv:.0f} cP | YP: {yp:.0f} lb/100ft2', border=1)
         pdf.cell(63, 8, f'Delta P Anular: {delta_p_anular_total:.0f} psi', border=1)
         pdf.cell(64, 8, f'ECD Calc: {ecd_calc:.2f} ppg', border=1, ln=True)
+        
+        # Segunda Linha - Performance da Broca (HSI, JIF e Velocidade)
+        pdf.cell(63, 8, f'Bit Drop: {bit_press_drop:.0f} psi ({perc_bit_drop:.0f}%)', border=1)
+        pdf.cell(63, 8, f'HSI: {hsi:.1f} hp/in2', border=1)
+        pdf.cell(64, 8, f'Jet Impact Force: {jif:.0f} lbf', border=1, ln=True)
+        
+        # Terceira Linha - Volumetria
+        pdf.cell(63, 8, f'Velocidade Jato: {jet_velocity_m:.1f} m/s', border=1)
+        pdf.cell(63, 8, f'Vol. Ciclo: {vol_total_sistema:.0f} bbl', border=1)
+        pdf.cell(64, 8, f'Bottoms Up: {(vol_anu_poco / vazao_bbl_min):.0f} min', border=1, ln=True)
         pdf.ln(5)
         
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, '3. Projecao Direcional e Estrategia', ln=True, fill=True)
+        pdf.cell(0, 10, '3. Limpeza de Poco e Torque & Drag', ln=True, fill=True)
+        pdf.set_font('Arial', '', 10)
+        
+        # Resgate seguro de variáveis (Evita erro se o usuário não preencher algo)
+        v_asc = locals().get('va_ftmin', 0)
+        ef_t = locals().get('et_perc', 0)
+        c_casc = locals().get('ca_perc', 0)
+        p_up = locals().get('puw', 0)
+        s_off = locals().get('sow', 0)
+        t_fric = locals().get('torque_friccao_lbft', 0)
+        
+        # Primeira Linha - Hole Cleaning
+        pdf.cell(63, 8, f'Vel. Ascensional: {v_asc:.1f} ft/min', border=1)
+        pdf.cell(63, 8, f'Eficiencia de Transp.: {ef_t:.1f}%', border=1)
+        pdf.cell(64, 8, f'Concentracao (Ca): {c_casc:.2f}%', border=1, ln=True)
+        
+        # Segunda Linha - Torque & Drag
+        pdf.cell(63, 8, f'Pick-Up Wt (PUW): {p_up:.1f} klbs', border=1)
+        pdf.cell(63, 8, f'Slack-Off Wt (SOW): {s_off:.1f} klbs', border=1)
+        pdf.cell(64, 8, f'Torque Friccional: {t_fric:.0f} lb-ft', border=1, ln=True)
+        pdf.ln(5)
+
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, '4. Projecao Direcional e Estrategia', ln=True, fill=True)
         pdf.set_font('Arial', '', 10)
         pdf.cell(47, 8, f'MD1: {md1}m', border=1)
         pdf.cell(47, 8, f'MD2: {md2}m', border=1)
@@ -933,7 +1135,7 @@ if st.button(t["btn_pdf"]):
         pdf.ln(5)
         
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, '4. Composicao de Fundo (BHA)', ln=True, fill=True)
+        pdf.cell(0, 10, '5. Composicao de Fundo (BHA)', ln=True, fill=True)
         pdf.set_font('Arial', 'B', 10)
         col_w = [10, 70, 20, 20, 35, 35]
         
