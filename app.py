@@ -499,10 +499,11 @@ with col11:
 st.markdown("---")
 st.header(t["head_bha"])
 
-st.write("**Parâmetros Base do Poço e Broca**")
-col_poco1, col_poco2 = st.columns(2)
-dh = col_poco1.number_input("Diâmetro do Poço / Hole Diameter (in)", value=dh_manual if modo_bha == t["opt_smart"] else 8.5, step=0.125)
+st.write("**Parâmetros Base do Poço, Broca e Superfície**")
+col_poco1, col_poco2, col_poco3 = st.columns(3)
+dh = col_poco1.number_input("Diâmetro do Poço (in)", value=dh_manual if modo_bha == t["opt_smart"] else 8.5, step=0.125)
 tfa = col_poco2.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f")
+peso_top_drive = col_poco3.number_input("Peso Top Drive / Bloco (klbs)", value=30.0, step=1.0)
 
 vol_total_interno_bha = 0.0
 vol_total_anular_bha = 0.0
@@ -741,9 +742,10 @@ if comp_total_dp > 0:
     peso_total_coluna = peso_total_bha + peso_total_dp_klbs
     bf = 1.0 - (peso_lama_ppg / 65.5) if 'peso_lama_ppg' in locals() else 0.85
     peso_flutuado_coluna = peso_total_coluna * bf
+    hook_load_estatico = peso_flutuado_coluna + peso_top_drive
     
-    col_dpr4.metric("Peso Ar Total", f"{peso_total_coluna:.1f} klbs")
-    col_dpr5.metric("Hook Load", f"{peso_flutuado_coluna:.1f} klbs")
+    col_dpr4.metric("Peso Ar Coluna", f"{peso_total_coluna:.1f} klbs")
+    col_dpr5.metric("Hook Load Estático", f"{hook_load_estatico:.1f} klbs", help="Coluna Flutuada + Bloco/Top Drive")
 
 # ==========================================
 # ANÁLISE AUTOMÁTICA E JAR PLACEMENT
@@ -780,7 +782,7 @@ with col_bha1:
             else: st.info(f"📉 **Pendulum Assembly (Drop)** - Apoio a {primeiro_estab:.1f}m.")
 
 with col_bha2:
-    st.write("**Posicionamento do Drilling Jar**")
+    st.write("**Análise de Jar e Linha Neutra**")
     
     wob_planejado = st.number_input("WOB Max Planejado (klbf)", 
                                     step=5.0, 
@@ -792,11 +794,54 @@ with col_bha2:
         fator_inclinacao = math.cos(math.radians(inc1)) if 'inc1' in locals() and inc1 > 0 else 1.0
         margem_seguranca = wob_planejado * 1.2
         
+        # --- 1. CÁLCULO DA LINHA NEUTRA (Neutral Point) ---
+        peso_acumulado = 0.0
+        distancia_np = 0.0
+        componente_np = "Não encontrado"
+        np_encontrado = False
+
+        for item in resultados_bha:
+            comp_nome = str(item.get('Componente', ''))
+            comp_m = float(item.get('C Total (m)', item.get('C Unitário (m)', item.get('C (m)', 0.0))))
+            peso_item_ar = float(item.get('Peso Total (klbs)', item.get('Peso Unit (klbs)', item.get('Comp(klbs)', 0.0))))
+            
+            peso_item_flutuado = peso_item_ar * fator_flutuacao * fator_inclinacao
+
+            if peso_acumulado + peso_item_flutuado >= wob_planejado:
+                peso_faltante = wob_planejado - peso_acumulado
+                fracao_comp = peso_faltante / peso_item_flutuado if peso_item_flutuado > 0 else 0
+                distancia_np += (fracao_comp * comp_m)
+                componente_np = comp_nome
+                np_encontrado = True
+                break
+            else:
+                peso_acumulado += peso_item_flutuado
+                distancia_np += comp_m
+
+        # Se não encontrou na BHA, calcula o quanto subiu no Drill Pipe
+        if not np_encontrado:
+            peso_faltante = wob_planejado - peso_acumulado
+            peso_linear_dp_klbs_m = ((peso_linear_dp * 3.28084) / 1000) * fator_flutuacao * fator_inclinacao if 'peso_linear_dp' in locals() else 0.015
+            
+            if peso_linear_dp_klbs_m > 0:
+                distancia_np += (peso_faltante / peso_linear_dp_klbs_m)
+            componente_np = "Drill Pipe"
+
+        # Exibe o valor da Linha Neutra SEMPRE
+        st.info(f"⚖️ **Linha Neutra (NP):** A **{distancia_np:.1f} m** da broca (Ferramenta: **{componente_np}**)")
+
+        # Se subiu para o DP, exibe o alerta logo abaixo
+        if not np_encontrado:
+            st.warning("⚠️ **Atenção:** O WOB planejado excede o peso flutuado da BHA. A Linha Neutra subiu para o Drill Pipe (Risco de Fadiga)!")
+
+        # --- 2. POSICIONAMENTO DO DRILLING JAR ---
         posicao_jar_atual = next((item for item in resultados_bha if "JAR" in str(item.get('Componente', '')).upper()), None)
         if posicao_jar_atual:
             peso_efetivo = parse_weight(posicao_jar_atual.get('Acum(klbs)', '0')) * fator_flutuacao * fator_inclinacao
-            if peso_efetivo < margem_seguranca: st.error(f"🚨 **Alerta de Fadiga:** Peso {peso_efetivo:.1f} klbf < {margem_seguranca:.1f} klbf. Risco de Ponto Neutro.")
-            else: st.success(f"✅ **Jar Bem Posicionado:** {peso_efetivo:.1f} klbf operando tracionado.")
+            if peso_efetivo < margem_seguranca: 
+                st.error(f"🚨 **Alerta de Fadiga:** Peso no Jar ({peso_efetivo:.1f} klbf) < Margem Segura ({margem_seguranca:.1f} klbf). Jar operando em compressão ou neutro.")
+            else: 
+                st.success(f"✅ **Jar Bem Posicionado:** {peso_efetivo:.1f} klbf (Operando tracionado de forma segura).")
         else:
             item_recomendado = None
             for item in resultados_bha:
@@ -804,9 +849,10 @@ with col_bha2:
                 if peso_efetivo_acumulado >= margem_seguranca:
                     item_recomendado = item.get('Componente', 'Desconhecido')
                     break
-            if item_recomendado: st.success(f"💡 **Recomendação:** Posicione o Jar **acima** da ferramenta: **{item_recomendado}**.")
-            else: st.error("🚨 **Atenção:** Peso TOTAL da BHA insuficiente para WOB.")
-
+            if item_recomendado: 
+                st.success(f"💡 **Recomendação de Jar:** Posicione **acima** da ferramenta: **{item_recomendado}**.")
+            else: 
+                st.error("🚨 **Atenção:** Peso TOTAL da BHA insuficiente para garantir tração no Jar com este WOB.")
 # ==========================================
 # DASHBOARD DE HIDRÁULICA E LIMPEZA DE ANULAR
 # ==========================================
@@ -1019,12 +1065,18 @@ if 'peso_flutuado_coluna' in locals() and peso_flutuado_coluna > 0:
     arrasto_axial = ff_poco * N_normal
     torque_friccao_lbft = (ff_poco * (N_normal * 1000) * r_ft)
     
-    rot_w = T_axial
-    puw = T_axial + arrasto_axial
-    sow = T_axial - arrasto_axial
+    # Cargas da coluna isolada (Para análise de flambagem no fundo)
+    puw_string = T_axial + arrasto_axial
+    sow_string = T_axial - arrasto_axial
+    
+    # Cargas Lidas no Indicador de Peso na Cabine (Somando o Bloco/Top Drive)
+    peso_top_drive_val = peso_top_drive if 'peso_top_drive' in locals() else 30.0
+    rot_w = T_axial + peso_top_drive_val
+    puw = puw_string + peso_top_drive_val
+    sow = sow_string + peso_top_drive_val
     max_pull = puw + overpull_margin
     
-    st.write("**Previsão de Cargas no Gancho (Hook Load) e Torque Friccional**")
+    st.write("**Previsão de Cargas no Gancho (Lidas no Painel da Sonda)**")
     c_td_a, c_td_b, c_td_c, c_td_d, c_td_e = st.columns(5)
     c_td_a.metric("Rotary Wt", f"{rot_w:.1f} klbs")
     c_td_b.metric("Pick-Up Wt", f"{puw:.1f} klbs", f"+{arrasto_axial:.1f}k Drag", delta_color="inverse")
@@ -1034,14 +1086,14 @@ if 'peso_flutuado_coluna' in locals() and peso_flutuado_coluna > 0:
     
     st.write("**Análise de Risco Operacional e Transferência de WOB**")
     wob_alvo = st.session_state.wob_main
-    peso_disponivel = sow - (wob_alvo * 1.2)
+    peso_disponivel = sow_string - (wob_alvo * 1.2)
     
-    if sow < wob_alvo:
-        st.error(f"🚨 **Risco Crítico de Buckling:** Slack-Off ({sow:.1f} klbs) menor que WOB Planejado ({wob_alvo:.1f} klbs). Sem peso na broca no modo Slide.")
+    if sow_string < wob_alvo:
+        st.error(f"🚨 **Risco Crítico de Buckling:** Peso disponível da coluna descendo ({sow_string:.1f} klbs) é menor que o WOB Planejado ({wob_alvo:.1f} klbs). Sem peso na broca.")
     elif peso_disponivel < 0:
         st.warning(f"⚠️ **Atenção (Sliding):** Slack-off marginal. Risco de pendurar a coluna ao tentar transferir {wob_alvo:.1f} klbs de peso.")
     else:
-        st.success(f"✅ **Transferência Segura:** Slack-Off ({sow:.1f} klbs) permite deslizar e transferir {wob_alvo:.1f} klbs na broca com segurança.")
+        st.success(f"✅ **Transferência Segura:** Slack-Off da coluna ({sow_string:.1f} klbs) permite deslizar e transferir {wob_alvo:.1f} klbs na broca com segurança.")
 
 # ==========================================
 # RELATÓRIO PDF
