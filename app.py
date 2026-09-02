@@ -4,7 +4,11 @@ import math
 import numpy as np
 import base64
 from fpdf import FPDF
-import datetime
+import pickle
+from datetime import datetime
+import pytz
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ==========================================
 # DICIONÁRIO DE IDIOMAS (i18n)
@@ -239,6 +243,57 @@ st.sidebar.header("🌍 Idioma / Language")
 idioma = st.sidebar.selectbox("Selecione / Select:", ["Português", "English", "Español"])
 t = textos[idioma]
 
+# ==========================================
+# SALVAR E CARREGAR PROJETO (.DIRPROJ)
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.header("💾 Salvar / Carregar Projeto")
+
+# 1. Carregar Projeto (Upload)
+st.sidebar.write("**Carregar Projeto (.dirproj)**")
+arquivo_upload = st.sidebar.file_uploader("Upload", type=["dirproj"], key="upload_projeto", label_visibility="collapsed")
+
+if arquivo_upload is not None:
+    if st.sidebar.button("Restaurar Dados", use_container_width=True):
+        try:
+            estado_recuperado = pickle.loads(arquivo_upload.getvalue())
+            # Injeta todos os dados de volta no app
+            for k, v in estado_recuperado.items():
+                st.session_state[k] = v
+            st.sidebar.success("✅ Projeto restaurado!")
+            st.rerun() # Atualiza a tela automaticamente
+        except Exception as e:
+            st.sidebar.error(f"Erro ao ler arquivo: {e}")
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# 2. Exportar Projeto Atual
+st.sidebar.write("**Exportar Projeto Atual**")
+
+# Separa as chaves pesadas (Tabelas)
+chaves_pesadas = ['df_trajetoria', 'df_plan', 'last_md', 'last_inc', 'last_az', 'last_tvd', 'last_ns', 'last_ew']
+dados_salvar = {k: st.session_state[k] for k in chaves_pesadas if k in st.session_state}
+
+# Mantém a sua lógica genial de salvar todos os textos/números dos inputs da tela!
+for k, v in st.session_state.items():
+    if isinstance(v, (int, float, str, bool)) and k not in dados_salvar:
+        dados_salvar[k] = v
+
+if dados_salvar:
+    dados_binarios = pickle.dumps(dados_salvar)
+    nome_arquivo = f"Projeto_Direcional_{datetime.now().strftime('%Y%m%d_%H%M')}.dirproj"    
+
+    st.sidebar.download_button(
+        label="📥 Exportar Projeto Atual", 
+        data=dados_binarios, 
+        file_name=nome_arquivo, 
+        mime="application/octet-stream",
+        use_container_width=True
+    )
+else:
+    st.sidebar.info("Calcule dados para salvar.")
+
+# Continuação original do seu layout
 col_titulo.markdown(f"<h1 style='margin-top: 10px;'>{t['title_main']}</h1>", unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
@@ -304,26 +359,170 @@ bent = st.sidebar.selectbox("Bent Housing (Graus)", [1.15, 1.25, 1.50, 1.75, 1.8
 estabilizacao = st.sidebar.radio("Tipo de BHA", ["Slick", "Stabilized"], key="tipo_bha")
 
 # ==========================================
-# TELA PRINCIPAL - SURVEYS E PROJEÇÃO
+# MÓDULO DE MÚLTIPLOS SURVEYS E IMPORTAÇÃO
 # ==========================================
+st.markdown("---")
+st.header("🛤️ Trajetória Completa (Múltiplos Surveys)")
+
+# 1. Estrutura Base na Memória com Todas as Colunas
+if "df_surveys_data" not in st.session_state:
+    st.session_state["df_surveys_data"] = pd.DataFrame({
+        "MD (m)": [0.0, 30.0, 60.0],
+        "Inc (°)": [0.0, 2.0, 5.0],
+        "Az (°)": [0.0, 45.0, 50.0],
+        "TVD (m)": [0.0, 29.99, 59.94],
+        "N/S (m)": [0.0, 0.37, 2.01],
+        "E/W (m)": [0.0, 0.37, 2.39],
+        "DLS (°/30m)": [0.0, 2.0, 3.0]
+    })
+
+# 2. Escolha do Método de Entrada
+modo_surveys = st.radio("Método de Entrada de Surveys:", ["Inserção Manual / Colar do Excel", "Importar Well Seeker (Innova)"])
+
+if modo_surveys == "Importar Well Seeker (Innova)":
+    arquivo_innova = st.file_uploader("Upload: Survey Report (.xlsx)", type=["xlsx", "xls"], key="upload_innova")
+    
+    if arquivo_innova is not None:
+        try:
+            df_raw = pd.read_excel(arquivo_innova, header=None)
+            # Varre a primeira coluna procurando a string "MD"
+            idx_md = df_raw[df_raw.iloc[:, 0].astype(str).str.strip().str.upper() == 'MD'].index
+            
+            if len(idx_md) > 0:
+                row_start = idx_md[0] + 2 # Pula o cabeçalho 'MD' e a linha de unidades 'm'
+                # Filtra as colunas exatas do relatório da Innova (0=MD, 1=INC, 2=AZI, 3=TVD, 4=NS, 5=EW, 7=DLS)
+                df_ext = df_raw.iloc[row_start:, [0, 1, 2, 3, 4, 5, 7]].copy()
+                df_ext.columns = ["MD (m)", "Inc (°)", "Az (°)", "TVD (m)", "N/S (m)", "E/W (m)", "DLS (°/30m)"]
+                df_ext = df_ext.apply(pd.to_numeric, errors='coerce').dropna(subset=["MD (m)", "Inc (°)", "Az (°)"]).reset_index(drop=True)
+                
+                # Trava para não atualizar em loop infinito
+                if not st.session_state.get("innova_loaded") or st.session_state.get("last_innova") != arquivo_innova.name:
+                    st.session_state["df_surveys_data"] = df_ext
+                    st.session_state["innova_loaded"] = True
+                    st.session_state["last_innova"] = arquivo_innova.name
+                    st.rerun()
+            else:
+                st.warning("⚠️ Não foi possível localizar a coluna de 'MD' neste arquivo.")
+        except Exception as e:
+            st.error(f"Erro ao processar o relatório da Innova: {e}")
+
+st.write("**Tabela de Surveys (Edite os valores base ou cole do Excel):**")
+
+# 3. Tabela Dinâmica
+df_surveys_input = st.data_editor(
+    st.session_state["df_surveys_data"], 
+    num_rows="dynamic", 
+    use_container_width=True,
+    key="editor_surveys_mult"
+)
+
+# Atualiza a memória com o que o usuário digitar ou colar
+st.session_state["df_surveys_data"] = df_surveys_input
+
+# ==========================================
+# EXTRAÇÃO AUTOMÁTICA DOS ÚLTIMOS SURVEYS
+# ==========================================
+# Atualiza a tabela na memória e extrai os dados precisos das duas últimas linhas
+df_valida = df_surveys_input.apply(pd.to_numeric, errors='coerce').dropna(subset=["MD (m)", "Inc (°)", "Az (°)"])
+
+if len(df_valida) >= 2:
+    prev_md = float(df_valida.iloc[-2]["MD (m)"])
+    prev_inc = float(df_valida.iloc[-2]["Inc (°)"])
+    prev_az = float(df_valida.iloc[-2]["Az (°)"])
+else:
+    prev_md, prev_inc, prev_az = 0.0, 0.0, 0.0
+    
+if len(df_valida) >= 1:
+    last_md = float(df_valida.iloc[-1]["MD (m)"])
+    last_inc = float(df_valida.iloc[-1]["Inc (°)"])
+    last_az = float(df_valida.iloc[-1]["Az (°)"])
+    last_tvd = float(df_valida.iloc[-1].get("TVD (m)", 0.0))
+    last_ns = float(df_valida.iloc[-1].get("N/S (m)", 0.0))
+    last_ew = float(df_valida.iloc[-1].get("E/W (m)", 0.0))
+    last_dls = float(df_valida.iloc[-1].get("DLS (°/30m)", 0.0))
+else:
+    last_md, last_inc, last_az, last_tvd, last_ns, last_ew, last_dls = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+# Gatilho de Memória: Se a tabela for modificada, reseta os valores do painel abaixo.
+current_tail_str = f"{prev_md}_{prev_inc}_{prev_az}_{last_md}_{last_inc}_{last_az}"
+if st.session_state.get("last_tail_str") != current_tail_str:
+    st.session_state["md_ant"], st.session_state["inc_ant"], st.session_state["az_ant"] = prev_md, prev_inc, prev_az
+    st.session_state["md_atual"], st.session_state["inc_atual"], st.session_state["az_atual"] = last_md, last_inc, last_az
+    st.session_state["md_alvo"] = last_md + 30.0
+    st.session_state["last_tail_str"] = current_tail_str
+
+# 4. Cálculo de Mínima Curvatura para toda a trajetória
+if st.button("🔄 Calcular Coordenadas (Mínima Curvatura)"):
+    df_calc = df_valida.copy()
+    
+    tvd_list, ns_list, ew_list, dls_list = [0.0], [0.0], [0.0], [0.0]
+    
+    for i in range(1, len(df_calc)):
+        md1, inc1, az1 = df_calc.iloc[i-1][["MD (m)", "Inc (°)", "Az (°)"]]
+        md2, inc2, az2 = df_calc.iloc[i][["MD (m)", "Inc (°)", "Az (°)"]]
+        
+        pm = md2 - md1
+        if pm <= 0:
+            tvd_list.append(tvd_list[-1])
+            ns_list.append(ns_list[-1])
+            ew_list.append(ew_list[-1])
+            dls_list.append(0.0)
+            continue
+            
+        i1_rad, i2_rad = math.radians(inc1), math.radians(inc2)
+        a1_rad, a2_rad = math.radians(az1), math.radians(az2)
+        
+        cos_beta = max(-1.0, min(1.0, math.cos(i2_rad - i1_rad) - (math.sin(i1_rad) * math.sin(i2_rad) * (1.0 - math.cos(a2_rad - a1_rad)))))
+        beta_rad = math.acos(cos_beta)
+        
+        if beta_rad == 0:
+            F, dls = 1.0, 0.0
+        else:
+            F = (2.0 / beta_rad) * math.tan(beta_rad / 2.0)
+            dls = math.degrees(beta_rad) * (30.0 / pm)
+            
+        delta_ns = (pm / 2.0) * (math.sin(i1_rad) * math.cos(a1_rad) + math.sin(i2_rad) * math.cos(a2_rad)) * F
+        delta_ew = (pm / 2.0) * (math.sin(i1_rad) * math.sin(a1_rad) + math.sin(i2_rad) * math.sin(a2_rad)) * F
+        pv = (pm / 2.0) * (math.cos(i1_rad) + math.cos(i2_rad)) * F
+        
+        tvd_list.append(tvd_list[-1] + pv)
+        ns_list.append(ns_list[-1] + delta_ns)
+        ew_list.append(ew_list[-1] + delta_ew)
+        dls_list.append(dls)
+        
+    df_calc["TVD (m)"] = np.round(tvd_list, 2)
+    df_calc["N/S (m)"] = np.round(ns_list, 2)
+    df_calc["E/W (m)"] = np.round(ew_list, 2)
+    df_calc["DLS (°/30m)"] = np.round(dls_list, 2)
+    
+    st.session_state["df_surveys_data"] = df_calc
+    st.session_state['df_trajetoria'] = df_calc
+    st.rerun()
+
+# ==========================================
+# TELA PRINCIPAL - PROJEÇÃO E RENDIMENTO DO MOTOR
+# ==========================================
+st.markdown("---")
 st.header(t["well_data"])
+st.write("💡 *Os campos abaixo e as coordenadas foram sincronizados automaticamente com o último survey da tabela.*")
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader(t["prev_surv"])
-    md_ant = st.number_input("MD (m)", value=970.0, step=1.0, key="md_ant")
-    inc_ant = st.number_input("Inc (°)", value=8.5, step=0.1, key="inc_ant")
-    az_ant = st.number_input("Az (°)", value=40.0, step=0.1, key="az_ant")
+    md_ant = st.number_input("MD (m)", value=prev_md, step=1.0, key="md_ant")
+    inc_ant = st.number_input("Inc (°)", value=prev_inc, step=0.1, key="inc_ant")
+    az_ant = st.number_input("Az (°)", value=prev_az, step=0.1, key="az_ant")
 with col2:
     st.subheader(t["curr_surv"])
-    md_atual = st.number_input("MD (m)", value=1000.0, step=1.0, key="md_atual")
-    inc_atual = st.number_input("Inc (°)", value=10.0, step=0.1, key="inc_atual")
-    az_atual = st.number_input("Az (°)", value=45.0, step=0.1, key="az_atual")
+    md_atual = st.number_input("MD (m)", value=last_md, step=1.0, key="md_atual")
+    inc_atual = st.number_input("Inc (°)", value=last_inc, step=0.1, key="inc_atual")
+    az_atual = st.number_input("Az (°)", value=last_az, step=0.1, key="az_atual")
     st.markdown("---")
     lbl_slide = "Slide Realizado (m)" if idioma == "Português" else "Slide Drilled (m)" if idioma == "English" else "Slide Realizado (m)"
     slide_realizado = st.number_input(lbl_slide, value=0.0, step=0.1)
 with col3:
     st.subheader(t["target"])
-    md_alvo = st.number_input("MD (m)", value=1030.0, step=1.0, key="md_alvo")
+    md_alvo = st.number_input("MD (m)", value=last_md + 30.0, step=1.0, key="md_alvo")
     inc_alvo = st.number_input("Inc (°)", value=12.0, step=0.1, key="inc_alvo")
     az_alvo = st.number_input("Az (°)", value=48.0, step=0.1, key="az_alvo")
 
@@ -351,8 +550,8 @@ if st.button(t["btn_calc"]):
     col5.metric(label="Toolface", value=f"{tf_req:.0f}° R")
     
     if rendimento_usado > 0:
-        pm_alvo = md_alvo - md_atual # Calcula a distância real do trecho
-        slide_m = (dls_req / rendimento_usado) * pm_alvo # Multiplica pela distância real
+        pm_alvo = md_alvo - md_atual 
+        slide_m = (dls_req / rendimento_usado) * pm_alvo 
         
         if slide_m > pm_alvo:
             st.error("Alvo inatingível com o Build Rate atual!" if idioma == "Português" else "Unreachable target with current Build Rate!" if idioma == "English" else "¡Objetivo inalcanzable con el Build Rate actual!")
@@ -362,34 +561,38 @@ if st.button(t["btn_calc"]):
         col6.metric(label="Slide (m)", value="-")
 
 # ==========================================
-# MÓDULO DE ACOMPANHAMENTO DIRECIONAL (MÍNIMA CURVATURA)
+# MÓDULO DE ACOMPANHAMENTO DIRECIONAL (MÍNIMA CURVATURA) E OUIJA-BOARD
 # ==========================================
 st.markdown("---")
 st.header(t["head_proj"])
 
 col_s1, col_s2 = st.columns(2)
 with col_s1:
-    st.write(f"**{t['curr_surv']}**")
-    md1 = st.number_input("MD 1 (m)", min_value=0.0, value=1000.0, step=10.0, format="%.2f", key="mc_md1")
-    inc1 = st.number_input("I1 (°)", min_value=0.0, max_value=180.0, value=10.0, step=0.1, format="%.2f", key="mc_i1")
-    az1 = st.number_input("A1 (°)", min_value=0.0, max_value=360.0, value=45.0, step=0.1, format="%.2f", key="mc_a1")
+    st.write(f"**{t['curr_surv']}** (Ancorado no Ponto Atual)")
+    
+    # As coordenadas viraram apenas painéis (espelhando a tabela)
+    c_tie1, c_tie2, c_tie3 = st.columns(3)
+    c_tie1.metric("MD 1 (m)", f"{last_md:.2f}")
+    c_tie2.metric("I1 (°)", f"{last_inc:.2f}")
+    c_tie3.metric("A1 (°)", f"{last_az:.2f}")
+    
     c_tvd1, c_ns1, c_ew1 = st.columns(3)
-    tvd1 = c_tvd1.number_input("TVD 1 (m)", value=995.0, step=1.0)
-    ns1 = c_ns1.number_input("N/S 1 (m)", value=50.0, step=1.0)
-    ew1 = c_ew1.number_input("E/W 1 (m)", value=50.0, step=1.0)
+    c_tvd1.metric("TVD 1 (m)", f"{last_tvd:.2f}")
+    c_ns1.metric("N/S 1 (m)", f"{last_ns:.2f}")
+    c_ew1.metric("E/W 1 (m)", f"{last_ew:.2f}")
 
 with col_s2:
     st.write(f"**{t['target']}**")
-    md2 = st.number_input("MD 2 (m)", min_value=md1, value=md1 + 30.0, step=1.0, format="%.2f", key="mc_md2")
-    inc2 = st.number_input("I2 (°)", min_value=0.0, max_value=180.0, value=12.0, step=0.1, format="%.2f", key="mc_i2")
-    az2 = st.number_input("A2 (°)", min_value=0.0, max_value=360.0, value=50.0, step=0.1, format="%.2f", key="mc_a2")
+    md2 = st.number_input("MD 2 (m)", min_value=last_md, value=last_md + 30.0, step=1.0, format="%.2f", key="mc_md2")
+    inc2 = st.number_input("I2 (°)", min_value=0.0, max_value=180.0, value=last_inc, step=0.1, format="%.2f", key="mc_i2")
+    az2 = st.number_input("A2 (°)", min_value=0.0, max_value=360.0, value=last_az, step=0.1, format="%.2f", key="mc_a2")
 
-tf_deg, dls, slide_meters, rotary_meters = 0.0, 0.0, 0.0, 0.0 
-pm = md2 - md1 
+tf_deg, dls, pm = 0.0, 0.0, md2 - last_md 
 
 if pm > 0:
-    i1_rad, i2_rad = math.radians(inc1), math.radians(inc2)
-    a1_rad, a2_rad = math.radians(az1), math.radians(az2)
+    # 1. Matemática de Mínima Curvatura para o Target
+    i1_rad, i2_rad = math.radians(last_inc), math.radians(inc2)
+    a1_rad, a2_rad = math.radians(last_az), math.radians(az2)
     cos_beta = max(-1.0, min(1.0, math.cos(i2_rad - i1_rad) - (math.sin(i1_rad) * math.sin(i2_rad) * (1.0 - math.cos(a2_rad - a1_rad)))))
     beta_rad = math.acos(cos_beta)
     
@@ -402,7 +605,7 @@ if pm > 0:
     delta_ns = (pm / 2.0) * (math.sin(i1_rad) * math.cos(a1_rad) + math.sin(i2_rad) * math.cos(a2_rad)) * F
     delta_ew = (pm / 2.0) * (math.sin(i1_rad) * math.sin(a1_rad) + math.sin(i2_rad) * math.sin(a2_rad)) * F
     pv = (pm / 2.0) * (math.cos(i1_rad) + math.cos(i2_rad)) * F
-    tvd2, ns2, ew2 = tvd1 + pv, ns1 + delta_ns, ew1 + delta_ew
+    tvd2, ns2, ew2 = last_tvd + pv, last_ns + delta_ns, last_ew + delta_ew
     
     st.write("---")
     res1, res2, res3, res4, res5 = st.columns(5)
@@ -410,23 +613,40 @@ if pm > 0:
     res2.metric("N/S (m)", f"{ns2:.2f}", f"{delta_ns:+.2f} m", delta_color="off")
     res3.metric("E/W (m)", f"{ew2:.2f}", f"{delta_ew:+.2f} m", delta_color="off")
     res4.metric("DLS (°/30m)", f"{dls:.2f}")
-    res5.metric("Disp. (m)", f"{math.sqrt(ns2**2 + ew2**2):.2f}")
+    res5.metric("Disp. Total (m)", f"{math.sqrt(ns2**2 + ew2**2):.2f}")
     
-    st.write("### 🧭 Ouija-Board")
+    st.write("### 🧭 Ouija-Board Vetorial (Rotary Compensado)")
+    
+    # 2. Direção (GTF) do Alvo
     if beta_rad > 0:
-        # Fórmulas corrigidas para o vetor da Gravity Toolface (GTF)
         tf_y = math.sin(a2_rad - a1_rad) * math.sin(i2_rad)
         tf_x = math.sin(i2_rad) * math.cos(i1_rad) * math.cos(a2_rad - a1_rad) - math.sin(i1_rad) * math.cos(i2_rad)
-        tf_deg = math.degrees(math.atan2(tf_y, tf_x))
-        if tf_deg < 0: tf_deg += 360.0
+        tf_deg = math.degrees(math.atan2(tf_y, tf_x)) % 360.0
     else:
         tf_deg = 0.0
 
-    c_ob1, c_ob2, c_ob3 = st.columns(3)
-    c_ob1.metric("GTF Requerida", f"{tf_deg:.0f}°")
-    c_ob2.metric("DLS da Seção", f"{dls:.2f} °/30m")
+    # 3. Direção (GTF) do Survey Anterior (Tendência)
+    if prev_md > 0 and last_md > prev_md:
+        pi_rad, pa_rad = math.radians(prev_inc), math.radians(prev_az)
+        tf_y_prev = math.sin(a1_rad - pa_rad) * math.sin(i1_rad)
+        tf_x_prev = math.sin(i1_rad) * math.cos(pi_rad) * math.cos(a1_rad - pa_rad) - math.sin(pi_rad) * math.cos(i1_rad)
+        last_tf = math.degrees(math.atan2(tf_y_prev, tf_x_prev)) % 360.0
+    else:
+        last_tf = 0.0
+
+    # Interface de Inserção Vetorial
+    st.write("**Tendência Natural da BHA (Modo Rotary / Hold)**")
+    col_rot1, col_rot2 = st.columns(2)
+    rot_dls = col_rot1.number_input("DLS de Rotary (°/30m)", value=float(last_dls), step=0.1, help="Padrão: DLS herdado do último survey.")
+    rot_tf = col_rot2.number_input("Toolface de Tendência (°)", value=float(last_tf), step=1.0, help="Padrão: Direção herdada do último survey.")
     
-    build_rate_banco = 0.0
+    st.write("**Parâmetros do Motor e Decisão**")
+    c_ob1, c_ob2, c_ob3 = st.columns(3)
+    c_ob1.metric("GTF Final (Reta p/ Alvo)", f"{tf_deg:.0f}°")
+    c_ob2.metric("DLS Requerido", f"{dls:.2f} °/30m")
+    
+    # Resgata o Build Rate Real ou do Banco
+    build_rate_banco_30m = 0.0
     try:
         df_m_clean = df_motores.copy()
         filtro_motor = df_m_clean[(df_m_clean['Modelo'].str.upper() == str(modelo).upper()) & 
@@ -434,19 +654,257 @@ if pm > 0:
                                   (df_m_clean['Bent_Housing_Graus'] == float(bent)) &
                                   (df_m_clean['Tipo_Estabilizacao'].str.upper() == str(estabilizacao).upper())]
         if not filtro_motor.empty and 'Build_Rate' in filtro_motor.columns:
-            build_rate_banco = float(filtro_motor.iloc[0]['Build_Rate'])
+            build_rate_banco_30m = float(filtro_motor.iloc[0]['Build_Rate']) * (30.0 / 30.48)
     except Exception: pass
 
-    valor_padrao_br = build_rate_banco if build_rate_banco > 0 else float(max(round(dls + 0.5, 1), 2.0))
-    build_rate = c_ob3.number_input("Build Rate (°/30m)", value=valor_padrao_br, step=0.1)
+    motor_yield_real_var = motor_yield_real if 'motor_yield_real' in locals() else 0.0
+    br_recomendado = motor_yield_real_var if motor_yield_real_var > 0 else build_rate_banco_30m
+    valor_padrao_br = float(br_recomendado) if br_recomendado > 0 else float(max(round(dls + 0.5, 1), 2.0))
     
+    build_rate = c_ob3.number_input("Build Rate do Motor (°/30m)", value=valor_padrao_br, step=0.1, help="Padrão: Motor Yield Real ou Teórico do DB.")
+    
+    # 4. Cálculo Vetorial Duplo (Motor x Tendência)
     if build_rate > 0:
-        slide_meters = (dls / build_rate) * pm
-        rotary_meters = max(0, pm - slide_meters)
-        if slide_meters > pm:
-            st.warning(f"⚠️ Build Rate INSUFICIENTE. Precisa de {dls:.2f} °/30m.")
+        q_rad, r_rad = math.radians(tf_deg), math.radians(rot_tf)
+        
+        Qx, Qy = dls * math.cos(q_rad), dls * math.sin(q_rad)
+        Rx, Ry = rot_dls * math.cos(r_rad), rot_dls * math.sin(r_rad)
+        
+        Dx, Dy = Qx - Rx, Qy - Ry
+        
+        A = build_rate**2 - rot_dls**2
+        B = -2 * (Dx * Rx + Dy * Ry)
+        C = -(Dx**2 + Dy**2)
+        
+        f = -1
+        if A == 0:
+            if B != 0: f = -C / B
+            else: f = 0
         else:
-            st.success(f"✅ Slide **{slide_meters:.1f} m** @ **{tf_deg:.0f}°** | Rotary **{rotary_meters:.1f} m**.")
+            disc = B**2 - 4*A*C
+            if disc >= 0:
+                f1, f2 = (-B + math.sqrt(disc)) / (2*A), (-B - math.sqrt(disc)) / (2*A)
+                f = max(f1, f2)
+                
+        if f > 1.0 or f < 0.0:
+            st.error(f"⚠️ **Falha Vetorial:** O Motor não possui agressividade suficiente ({build_rate:.2f}°/30m) para compensar a tendência do poço ({rot_dls:.2f}° @ {rot_tf:.0f}°) e ainda chegar ao alvo. Reavalie o Target ou o BHA.")
+        else:
+            slide_meters = f * pm
+            rotary_meters = pm - slide_meters
+            
+            if f > 0:
+                tf_motor = math.degrees(math.atan2(Dy/f + Ry, Dx/f + Rx)) % 360.0
+            else:
+                tf_motor = tf_deg
+                
+            # 💡 SALVANDO NA MEMÓRIA DA SESSÃO
+            st.session_state['out_slide'] = slide_meters
+            st.session_state['out_rotary'] = rotary_meters
+            st.session_state['out_pm'] = pm
+            st.session_state['out_tf_motor'] = tf_motor
+                
+            st.success(f"✅ **Estratégia Compensada:** Deslize **{slide_meters:.1f} m** apontando sua ferramenta para **{tf_motor:.0f}°**, e depois gire (Rotary) o restante de **{rotary_meters:.1f} m**.")
+
+# ==========================================
+# VISUALIZAÇÃO GRÁFICA DA TRAJETÓRIA (2D / 3D)
+# ==========================================
+st.markdown("---")
+st.header("📊 Visualização da Trajetória (Real vs Plano)")
+
+col_graf1, col_graf2 = st.columns([1, 2])
+with col_graf1:
+    st.write("**Carregar Arquivo do Projeto (Plan)**")
+    arquivo_plan = st.file_uploader("Upload: Plan Report (.xls, .xlsx)", type=["xlsx", "xls"], key="upload_plan")
+    
+    if arquivo_plan is not None:
+        try:
+            df_raw_plan = pd.read_excel(arquivo_plan, header=None)
+            
+            import re
+            def limpa_numero(x):
+                if pd.isna(x): return np.nan
+                x_str = str(x).strip()
+                if x_str in ['--', '-', '']: return np.nan
+                if ',' in x_str and '.' in x_str: x_str = x_str.replace(',', '')
+                elif ',' in x_str and '.' not in x_str: x_str = x_str.replace(',', '.')
+                x_str = re.sub(r'[^\d\.\-]', '', x_str)
+                try: return float(x_str)
+                except ValueError: return np.nan
+
+            df_plan_ext = None
+            origem_dados = ""
+            
+            # 1. TENTA ACHAR A TABELA RESUMIDA: "PLAN SECTIONS"
+            mask_plan = df_raw_plan.astype(str).apply(lambda col: col.str.strip().str.lower().str.startswith('measured'))
+            idx_plan_sec = df_raw_plan[mask_plan.any(axis=1)].index
+            
+            if len(idx_plan_sec) > 0:
+                header_idx = idx_plan_sec[0]
+                h_row_1 = df_raw_plan.iloc[header_idx].astype(str).str.strip().str.lower()
+                h_row_2 = df_raw_plan.iloc[header_idx + 1].astype(str).str.strip().str.lower() if header_idx + 1 < len(df_raw_plan) else pd.Series()
+                
+                def find_col_multi(keywords, exclude=None):
+                    for k in keywords:
+                        for idx, val in h_row_1.items():
+                            val_str = str(val) + " " + str(h_row_2.get(idx, ""))
+                            val_str = val_str.strip().lower()
+                            if k in val_str:
+                                if exclude and exclude in val_str: continue
+                                return idx
+                    return None
+                    
+                c_md = find_col_multi(['measured'])
+                c_inc = find_col_multi(['inclination', 'inc'])
+                c_az = find_col_multi(['azimuth', 'azi'])
+                c_tvd = find_col_multi(['vertical depth', 'tvd'])
+                c_ns = find_col_multi(['+n/-s'])
+                c_ew = find_col_multi(['+e/-w'])
+                
+                if None not in [c_md, c_inc, c_az, c_tvd, c_ns, c_ew]:
+                    df_plan_ext = df_raw_plan.iloc[header_idx + 2:, [c_md, c_inc, c_az, c_tvd, c_ns, c_ew]].copy()
+                    df_plan_ext.columns = ["MD", "Inc", "Az", "TVD", "Northing", "Easting"]
+                    origem_dados = "Plan Sections"
+            
+            # 2. SE FALHAR, TENTA ACHAR A TABELA DETALHADA: "PLANNED SURVEY"
+            if df_plan_ext is None:
+                mask_surv = df_raw_plan.astype(str).apply(lambda col: col.str.strip().str.upper().str.startswith('MD'))
+                idx_md_plan = df_raw_plan[mask_surv.any(axis=1)].index
+                
+                if len(idx_md_plan) > 0:
+                    header_idx = idx_md_plan[0]
+                    header_row = df_raw_plan.iloc[header_idx] 
+                    
+                    def find_col(keywords, exclude=None):
+                        for k in keywords:
+                            for idx, val in header_row.items():
+                                val_str = str(val).strip().lower()
+                                if k in val_str:
+                                    if exclude and exclude in val_str: continue
+                                    return idx
+                        return None
+                    
+                    c_md = find_col(['md'])
+                    c_inc = find_col(['inc'])
+                    c_az = find_col(['azi', 'azim'])
+                    c_tvd = find_col(['tvd'], exclude='tvdss')
+                    c_ns = find_col(['northing', 'norte', '+n/-s', 'n/s'])
+                    c_ew = find_col(['easting', 'leste', '+e/-w', 'e/w'])
+                    
+                    if None not in [c_md, c_inc, c_az, c_tvd, c_ns, c_ew]:
+                        df_plan_ext = df_raw_plan.iloc[header_idx + 1:, [c_md, c_inc, c_az, c_tvd, c_ns, c_ew]].copy()
+                        df_plan_ext.columns = ["MD", "Inc", "Az", "TVD", "Northing", "Easting"]
+                        origem_dados = "Planned Survey"
+            
+            # 3. PROCESSAMENTO FINAL E CORTADOR DE TABELAS DUPLAS
+            if df_plan_ext is not None:
+                # Aplica a limpeza de vírgulas e letras em todas as colunas
+                for c in df_plan_ext.columns: 
+                    df_plan_ext[c] = df_plan_ext[c].apply(limpa_numero)
+                
+                # Remove linhas vazias
+                df_plan_ext = df_plan_ext.dropna(subset=['MD', 'Inc', 'Az']).reset_index(drop=True)
+                
+                # 💡 O DETECTOR DE QUEDA: Se o MD diminuir, significa que invadimos uma segunda tabela. Cortamos aqui!
+                if len(df_plan_ext) > 1:
+                    quedas = df_plan_ext[df_plan_ext['MD'] < df_plan_ext['MD'].shift(1)].index
+                    if len(quedas) > 0:
+                        df_plan_ext = df_plan_ext.iloc[:quedas[0]]
+                
+                if not df_plan_ext.empty:
+                    df_plan_ext = df_plan_ext.sort_values(by="MD").reset_index(drop=True)
+                    
+                    tie_northing = float(df_plan_ext.iloc[0]['Northing'])
+                    tie_easting = float(df_plan_ext.iloc[0]['Easting'])
+                    
+                    df_plan_ext['N/S (m)'] = df_plan_ext['Northing'] - tie_northing
+                    df_plan_ext['E/W (m)'] = df_plan_ext['Easting'] - tie_easting
+                    df_plan_ext["Desl. Total (m)"] = np.sqrt(df_plan_ext["N/S (m)"]**2 + df_plan_ext["E/W (m)"]**2)
+                    
+                    st.session_state['df_plan'] = df_plan_ext
+                    st.success(f"✅ Projeto carregado via: **{origem_dados}**")
+                    with st.expander("🔍 Ver Dados Extraídos do Plano"):
+                        st.dataframe(df_plan_ext.head(15))
+                else:
+                    st.warning("Nenhum dado numérico válido extraído da tabela.")
+            else:
+                st.error("⚠️ Não foi possível localizar colunas válidas nem na 'Plan Sections' nem na 'Planned Survey'.")
+                
+        except Exception as e:
+            st.error(f"Erro ao processar arquivo do Projeto: {e}")
+
+# ===============================
+# LÓGICA DE PLOTAGEM INDEPENDENTE
+# ===============================
+has_real = 'df_trajetoria' in st.session_state and not st.session_state['df_trajetoria'].empty
+has_plan = 'df_plan' in st.session_state and not st.session_state['df_plan'].empty
+
+if has_real or has_plan:
+    tab_3d, tab_top, tab_sec = st.tabs(["🌐 Visão 3D", "🗺️ Visão de Topo (N/S x E/W)", "📉 Visão de Seção (Desloc. x TVD)"])
+    
+    with tab_3d:
+        fig_3d = go.Figure()
+        
+        if has_real:
+            df_plot = st.session_state['df_trajetoria'].copy()
+            df_plot["Desl. Total (m)"] = np.sqrt(df_plot["N/S (m)"]**2 + df_plot["E/W (m)"]**2)
+            fig_3d.add_trace(go.Scatter3d(
+                x=df_plot["E/W (m)"], y=df_plot["N/S (m)"], z=df_plot["TVD (m)"],
+                mode='lines+markers',
+                marker=dict(size=4, color=df_plot["MD (m)"], colorscale='Viridis', showscale=True, colorbar=dict(title="MD (m)", x=-0.1)),
+                line=dict(color='darkblue', width=4),
+                name='Trajetória Real',
+                hovertemplate="<b>Real MD:</b> %{marker.color:.1f} m<br><b>TVD:</b> %{z:.1f} m<br><b>N/S:</b> %{y:.1f} m<br><b>E/W:</b> %{x:.1f} m<extra></extra>"
+            ))
+            
+        if has_plan:
+            df_p = st.session_state['df_plan']
+            fig_3d.add_trace(go.Scatter3d(
+                x=df_p["E/W (m)"], y=df_p["N/S (m)"], z=df_p["TVD"],
+                mode='lines',
+                line=dict(color='red', width=3, dash='dash'),
+                name='Plano / Projeto',
+                hovertemplate="<b>Plan MD:</b> %{text:.1f} m<br><b>TVD:</b> %{z:.1f} m<br><b>N/S:</b> %{y:.1f} m<br><b>E/W:</b> %{x:.1f} m<extra></extra>",
+                text=df_p["MD"]
+            ))
+
+        fig_3d.update_layout(
+            scene=dict(xaxis_title='Leste/Oeste (m)', yaxis_title='Norte/Sul (m)', zaxis_title='TVD (m)', zaxis_autorange='reversed'),
+            margin=dict(l=0, r=0, b=0, t=30), height=600, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        )
+        st.plotly_chart(fig_3d, use_container_width=True)
+
+    with tab_top:
+        fig_top = go.Figure()
+        if has_real:
+            fig_top.add_trace(go.Scatter(
+                x=df_plot["E/W (m)"], y=df_plot["N/S (m)"], mode='lines+markers',
+                marker=dict(size=6, color=df_plot["MD (m)"], colorscale='Viridis'), name='Real',
+                hovertemplate="<b>N/S:</b> %{y:.1f} m<br><b>E/W:</b> %{x:.1f} m<extra></extra>"
+            ))
+        if has_plan:
+            df_p = st.session_state['df_plan']
+            fig_top.add_trace(go.Scatter(x=df_p["E/W (m)"], y=df_p["N/S (m)"], mode='lines', line=dict(color='red', dash='dash'), name='Plano'))
+            
+        fig_top.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(size=12, color='black', symbol='star'), name='Superfície'))
+        fig_top.update_layout(xaxis_title="E/W (m)", yaxis_title="N/S (m)", height=500, xaxis=dict(scaleanchor="y", scaleratio=1))
+        st.plotly_chart(fig_top, use_container_width=True)
+
+    with tab_sec:
+        fig_sec = go.Figure()
+        if has_real:
+            fig_sec.add_trace(go.Scatter(
+                x=df_plot["Desl. Total (m)"], y=df_plot["TVD (m)"], mode='lines+markers',
+                marker=dict(size=6, color=df_plot["MD (m)"], colorscale='Viridis'), name='Real',
+                hovertemplate="<b>Desloc:</b> %{x:.1f} m<br><b>TVD:</b> %{y:.1f} m<extra></extra>"
+            ))
+        if has_plan:
+            df_p = st.session_state['df_plan']
+            fig_sec.add_trace(go.Scatter(x=df_p["Desl. Total (m)"], y=df_p["TVD"], mode='lines', line=dict(color='red', dash='dash'), name='Plano'))
+            
+        fig_sec.update_layout(xaxis_title="Deslocamento Total (Disp. m)", yaxis_title="TVD (m)", yaxis_autorange='reversed', height=500)
+        st.plotly_chart(fig_sec, use_container_width=True)
+else:
+    st.info("👆 Importe a Trajetória na seção acima para visualizar os gráficos.")
 
 # ==========================================
 # PARÂMETROS DE FLUIDO E POÇO
@@ -454,10 +912,10 @@ if pm > 0:
 st.markdown("---")
 st.header("🌊 Parâmetros de Fluido e Poço")
 col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-peso_lama_ppg = col_f1.number_input("Mud Weight (ppg)", value=9.0, step=0.1)
-vazao_gpm = col_f2.number_input("Flow Rate (GPM)", value=450.0, step=10.0)
-pv = col_f3.number_input("PV (cP)", value=15.0, step=1.0)
-yp = col_f4.number_input("YP (lb/100ft²)", value=25.0, step=1.0)
+peso_lama_ppg = col_f1.number_input("Mud Weight (ppg)", value=9.0, step=0.1, key="peso_lama_ppg")
+vazao_gpm = col_f2.number_input("Flow Rate (GPM)", value=450.0, step=10.0, key="vazao_gpm")
+pv = col_f3.number_input("PV (cP)", value=15.0, step=1.0, key="pv")
+yp = col_f4.number_input("YP (lb/100ft²)", value=25.0, step=1.0, key="yp")
 
 # ==========================================
 # MÓDULO DE ENGENHARIA DO MOTOR (PDM)
@@ -501,9 +959,9 @@ st.header(t["head_bha"])
 
 st.write("**Parâmetros Base do Poço, Broca e Superfície**")
 col_poco1, col_poco2, col_poco3 = st.columns(3)
-dh = col_poco1.number_input("Diâmetro do Poço (in)", value=dh_manual if modo_bha == t["opt_smart"] else 8.5, step=0.125)
-tfa = col_poco2.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f")
-peso_top_drive = col_poco3.number_input("Peso Top Drive / Bloco (klbs)", value=30.0, step=1.0)
+dh = col_poco1.number_input("Diâmetro do Poço (in)", value=dh_manual if modo_bha == t["opt_smart"] else 8.5, step=0.125, key="dh")
+tfa = col_poco2.number_input("TFA da Broca (in²)", value=0.450, step=0.001, format="%.3f", key="tfa")
+peso_top_drive = col_poco3.number_input("Peso Top Drive / Bloco (klbs)", value=30.0, step=1.0, key="peso_top_drive")
 
 vol_total_interno_bha = 0.0
 vol_total_anular_bha = 0.0
@@ -853,6 +1311,7 @@ with col_bha2:
                 st.success(f"💡 **Recomendação de Jar:** Posicione **acima** da ferramenta: **{item_recomendado}**.")
             else: 
                 st.error("🚨 **Atenção:** Peso TOTAL da BHA insuficiente para garantir tração no Jar com este WOB.")
+
 # ==========================================
 # DASHBOARD DE HIDRÁULICA E LIMPEZA DE ANULAR
 # ==========================================
@@ -1096,10 +1555,143 @@ if 'peso_flutuado_coluna' in locals() and peso_flutuado_coluna > 0:
         st.success(f"✅ **Transferência Segura:** Slack-Off da coluna ({sow_string:.1f} klbs) permite deslizar e transferir {wob_alvo:.1f} klbs na broca com segurança.")
 
 # ==========================================
+# MÓDULO DE ANÁLISE ECONÔMICA (CUSTO POR METRO)
+# ==========================================
+st.markdown("---")
+st.header("💰 Análise Econômica Operacional")
+st.write("Avalie o impacto financeiro da estratégia calculada no Ouija-Board.")
+
+col_eco1, col_eco2, col_eco3 = st.columns(3)
+
+with col_eco1:
+    st.subheader("Custos Operacionais Diários")
+    sonda_dia = st.number_input("Custo da Sonda ($/dia)", value=50000.0, step=1000.0)
+    bha_dia = st.number_input("Custo Ferramentas/Direcional ($/dia)", value=15000.0, step=500.0)
+    
+    custo_hora = (sonda_dia + bha_dia) / 24.0
+
+with col_eco2:
+    st.subheader("Desempenho (ROP)")
+    rop_rotary = st.number_input("ROP Estimada - Rotary (m/h)", value=30.0, step=1.0)
+    rop_slide = st.number_input("ROP Estimada - Slide (m/h)", value=10.0, step=1.0)
+
+with col_eco3:
+    st.subheader("Resumo do Trecho Projetado")
+    st.metric("Custo Fixo por Hora", f"$ {custo_hora:,.2f}")
+    
+    # 💡 LENDO DA MEMÓRIA DA SESSÃO
+    if 'out_pm' in st.session_state and st.session_state['out_pm'] > 0:
+        pm_calc = st.session_state['out_pm']
+        slide_calc = st.session_state['out_slide']
+        rotary_calc = st.session_state['out_rotary']
+        
+        if rop_rotary > 0 and rop_slide > 0:
+            tempo_slide = slide_calc / rop_slide
+            tempo_rotary = rotary_calc / rop_rotary
+            tempo_total = tempo_slide + tempo_rotary
+            
+            custo_trecho = tempo_total * custo_hora
+            custo_por_metro = custo_trecho / pm_calc
+            
+            st.metric("Custo do Trecho Projetado", f"$ {custo_trecho:,.2f}")
+            st.metric("Custo por Metro ($/m)", f"$ {custo_por_metro:,.2f}", help="Custo médio baseado no ratio de Slide vs Rotary.")
+        else:
+            st.info("Insira uma ROP maior que zero para calcular.")
+    else:
+         st.info("Calcule uma projeção direcional acima para visualizar os custos.")
+
+# ==========================================
+# RELATÓRIO INTERATIVO DE HIDRÁULICA E FLUIDOS
+# ==========================================
+st.markdown("---")
+st.header("🌊 Relatório de Hidráulica e Limpeza de Poço")
+st.write("Análise de perfilagem dinâmica cruzando a trajetória real com os parâmetros globais de fluido e poço.")
+
+if 'df_trajetoria' in st.session_state and not st.session_state['df_trajetoria'].empty:
+    df_hyd = st.session_state['df_trajetoria'].copy()
+    
+    # --- ROTEAMENTO DE VARIÁVEIS GLOBAIS ---
+    # Substituímos as caixas de digitação manuais pelas variáveis já declaradas acima
+    mw = peso_lama_ppg
+    gpm = vazao_gpm
+    dh_in = dh
+    dp_in = od_dp if 'od_dp' in locals() else 5.0
+    
+    # --- MOTOR MATEMÁTICO DE HIDRÁULICA ---
+    prof_md = df_hyd["MD (m)"]
+    angulo = df_hyd["Inc (°)"] if "Inc (°)" in df_hyd.columns else prof_md * 0.0
+    
+    va_base = (24.5 * gpm) / ((dh_in**2) - (dp_in**2))
+    va_curva = np.full(len(prof_md), va_base)
+    
+    esd_curva = np.full(len(prof_md), mw)
+    fator_atrito = (pv + yp) / 100.0
+    ecd_curva = mw + (prof_md / 1000.0) * fator_atrito * (gpm / 300.0)
+
+    # --- CONSTRUÇÃO DO GRÁFICO (MULTI-TRACK CLEAN) ---
+        
+    st.markdown("#### 📊 Perfil de Geometria e Pressões")
+    
+    # Removemos os subplot_titles. Os próprios eixos farão a função de cabeçalho para evitar sobreposição.
+    fig_hyd = make_subplots(rows=1, cols=4, shared_yaxes=True, horizontal_spacing=0.02)
+
+    r_poco = dh_in / 2.0
+    r_tubo = dp_in / 2.0
+
+    # Track 1: Geometria (Minimalista - Sem blocos pesados)
+    fig_hyd.add_trace(go.Scatter(x=[-r_poco, -r_poco], y=[0, prof_md.max()], mode='lines', name='Poço', line=dict(color='lightgray', width=2), showlegend=False), row=1, col=1)
+    fig_hyd.add_trace(go.Scatter(x=[r_poco, r_poco], y=[0, prof_md.max()], mode='lines', line=dict(color='lightgray', width=2), showlegend=False), row=1, col=1)
+    fig_hyd.add_trace(go.Scatter(x=[0, 0], y=[0, prof_md.max()], mode='lines', name='Coluna (DP)', line=dict(color='#87CEFA', width=8), showlegend=False), row=1, col=1) # Linha grossa central simulando o tubo
+    fig_hyd.add_trace(go.Scatter(x=[-r_poco, r_poco], y=[prof_md.max(), prof_md.max()], mode='lines', name='Broca', line=dict(color='gold', width=4), showlegend=False), row=1, col=1)
+
+    # Track 2: Trajetória (Cores vivas, sem preenchimento)
+    fig_hyd.add_trace(go.Scatter(x=angulo, y=prof_md, mode='lines', name='Inclinação (°)', line=dict(color='#00FFFF', width=3)), row=1, col=2)
+    
+    # Track 3: Pressões e Densidades (Linhas nítidas contrastantes)
+    fig_hyd.add_trace(go.Scatter(x=esd_curva, y=prof_md, mode='lines', name='ESD (Estático)', line=dict(color='#1E90FF', width=2, dash='dash')), row=1, col=3)
+    fig_hyd.add_trace(go.Scatter(x=ecd_curva, y=prof_md, mode='lines', name='ECD (Circulando)', line=dict(color='#FF3333', width=3)), row=1, col=3)
+
+    # Track 4: Limpeza do Poço
+    fig_hyd.add_trace(go.Scatter(x=va_curva, y=prof_md, mode='lines', name='Vel. Anular (ft/min)', line=dict(color='#FFD700', width=3)), row=1, col=4)
+
+    # Configurações Clean Dark Mode
+    fig_hyd.update_layout(
+        template="plotly_dark",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        height=750,
+        margin=dict(t=90, b=40, l=40, r=20), # Margem superior 't=90' dá espaço seguro para os textos
+        hovermode='y unified',               # 💡 MÁGICA: Uma linha horizontal mostra todos os dados juntos!
+        
+        yaxis=dict(title='MD (m)', autorange='reversed', showgrid=True, gridcolor='#333333', zeroline=False),
+        
+        # Eixos no topo com os nomes organizados
+        xaxis=dict(side='top', title='<b>Geometria</b>', range=[-dh_in, dh_in], showticklabels=False, showgrid=False, zeroline=False),
+        xaxis2=dict(side='top', title='<b>Graus (°)</b>', range=[0, 90], showgrid=True, gridcolor='#333333', zeroline=False),
+        xaxis3=dict(side='top', title='<b>Densidade (lb/gal)</b>', range=[mw - 0.5, mw + 1.5], showgrid=True, gridcolor='#333333', zeroline=False),
+        xaxis4=dict(side='top', title='<b>Va (ft/min)</b>', range=[50, 300], showgrid=True, gridcolor='#333333', zeroline=False),
+        
+        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+    )
+
+    st.plotly_chart(fig_hyd, use_container_width=True)
+    
+else:
+    st.info("👆 Importe a Trajetória na primeira seção para liberar o Módulo de Hidráulica.")
+
+# ==========================================
 # RELATÓRIO PDF
 # ==========================================
 st.markdown("---")
 st.header(t["head_pdf"])
+
+md1 = last_md if 'last_md' in locals() else 0.0
+inc1 = last_inc if 'last_inc' in locals() else 0.0
+az1 = last_az if 'last_az' in locals() else 0.0
+tvd1 = last_tvd if 'last_tvd' in locals() else 0.0
+ns1 = last_ns if 'last_ns' in locals() else 0.0
+ew1 = last_ew if 'last_ew' in locals() else 0.0
+
 nome_poco = st.text_input("Poço / Sonda", value="Exploratório")
 nome_operador = st.text_input("Operador Direcional", value="Engenheiro Chefe")
 
@@ -1116,10 +1708,16 @@ if st.button(t["btn_pdf"]):
         pdf.set_font('Arial', 'B', 16)
         pdf.cell(0, 10, 'Relatorio Diario de Engenharia', ln=True, align='C')
         pdf.set_font('Arial', '', 10)
-        dt_atual = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        
+        # Define o fuso horário oficial
+        fuso_br = pytz.timezone('America/Bahia') 
+
+        # Pega a hora exata já convertida
+        dt_atual = datetime.now(fuso_br).strftime("%d/%m/%Y %H:%M:%S")
+
+        # Imprime no PDF usando a variável dt_atual corrigida
         pdf.cell(0, 10, f'Poco: {nome_poco} | Operador: {nome_operador} | Data: {dt_atual}', ln=True, align='C')
         pdf.ln(10)
-        
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(0, 10, '1. Parametros Operacionais e Motor', ln=True, fill=True)
         pdf.set_font('Arial', '', 10)
@@ -1179,11 +1777,17 @@ if st.button(t["btn_pdf"]):
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(0, 10, '4. Projecao Direcional e Estrategia', ln=True, fill=True)
         pdf.set_font('Arial', '', 10)
+        
+        # 💡 RESGATA AS VARIÁVEIS SALVAS NO COFRE DA SESSÃO
+        slide_pdf = st.session_state.get('out_slide', 0.0)
+        rotary_pdf = st.session_state.get('out_rotary', 0.0)
+        tf_pdf = st.session_state.get('out_tf_motor', tf_deg) 
+        
         pdf.cell(47, 8, f'MD1: {md1}m', border=1)
         pdf.cell(47, 8, f'MD2: {md2}m', border=1)
-        pdf.cell(48, 8, f'Toolface: {tf_deg:.0f} graus', border=1)
+        pdf.cell(48, 8, f'Toolface: {tf_pdf:.0f} graus', border=1)
         pdf.cell(48, 8, f'DLS: {dls:.2f} /30m', border=1, ln=True)
-        pdf.cell(0, 8, f'Slide Recomendado: {slide_meters:.1f} m  |  Rotary: {rotary_meters:.1f} m', border=1, ln=True)
+        pdf.cell(0, 8, f'Slide Recomendado: {slide_pdf:.1f} m  |  Rotary: {rotary_pdf:.1f} m', border=1, ln=True)
         pdf.ln(5)
         
         pdf.set_font('Arial', 'B', 12)
